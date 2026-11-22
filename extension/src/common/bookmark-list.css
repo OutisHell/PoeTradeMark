@@ -1,0 +1,226 @@
+.ptb-collection-controls,
+.bookmark-list,
+.ptb-sb-list {
+  --ptb-bm-accent: #2760a5;
+  --ptb-bm-border: #cfd6df;
+  --ptb-bm-fill: #fff;
+  --ptb-bm-text: #27313f;
+}
+
+.ptb-sidebar .ptb-collection-controls,
+.ptb-game-poe1 .ptb-collection-controls,
+.ptb-game-poe1 .bookmark-list,
+.ptb-sb-list {
+  --ptb-bm-accent: #ffd680;
+  --ptb-bm-border: #5b4b2e;
+  --ptb-bm-fill: #241a0e;
+  --ptb-bm-text: #f7e1a6;
+}
+
+.ptb-game-poe2 .ptb-collection-controls,
+.ptb-game-poe2 .bookmark-list,
+.ptb-game-poe2 .ptb-sb-list {
+  --ptb-bm-accent: #9bb9f2;
+  --ptb-bm-border: #526485;
+  --ptb-bm-fill: #202b40;
+  --ptb-bm-text: #e2eaff;
+}
+
+.ptb-bm-header,
+.ptb-bm-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ptb-bm-root,
+.ptb-bm-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.ptb-bm-root:has(.ptb-bm-items .ptb-bm-dragging) {
+  padding-bottom: 16px;
+}
+
+.ptb-bm-root .ptb-sb-row {
+  margin-bottom: 0;
+}
+
+.ptb-bm-header {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 7px;
+  color: var(--ptb-bm-text);
+  background: var(--ptb-bm-fill);
+}
+
+.ptb-bm-empty,
+.ptb-bm-status {
+  padding: 3px;
+  color: var(--ptb-bm-text);
+  font-size: 12px;
+}
+
+.ptb-bm-status:empty {
+  display: none;
+}
+
+.ptb-bm-button,
+.ptb-bm-input {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 4px;
+  color: var(--ptb-bm-text);
+  background: var(--ptb-bm-fill);
+  font: inherit;
+  font-size: 12px;
+}
+
+.ptb-bm-button {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ptb-bm-button:hover:not(:disabled) {
+  border-color: var(--ptb-bm-accent);
+}
+
+.ptb-bm-toggle,
+.ptb-bm-input {
+  flex: 1;
+}
+
+.ptb-bm-toggle,
+.ptb-bm-form {
+  display: flex;
+  align-items: baseline;
+  gap: .35em;
+  overflow: hidden;
+  border-color: transparent;
+  background: transparent;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.ptb-bm-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ptb-bm-form {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--ptb-bm-accent);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ptb-bm-form .ptb-bm-input {
+  outline: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.ptb-bm-toggle:disabled {
+  cursor: default;
+}
+
+.ptb-bm-items:not(:empty) {
+  margin-top: 4px;
+}
+
+.ptb-bm-items {
+  margin-inline-start: 10px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--ptb-bm-border);
+}
+
+.ptb-bm-items:empty {
+  display: none;
+}
+
+.ptb-bm-menu {
+  box-sizing: border-box;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-width: 130px;
+  max-width: min(250px, calc(100vw - 8px));
+  max-height: min(260px, calc(100vh - 8px));
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 6px;
+  color: var(--ptb-bm-text);
+  background: var(--ptb-bm-fill);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 30%);
+}
+
+.ptb-bm-menu:popover-open {
+  display: grid;
+  gap: 2px;
+}
+
+.ptb-bm-menu .ptb-bm-button {
+  overflow: hidden;
+  border-color: transparent;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.ptb-bm-menu .ptb-bm-button:hover,
+.ptb-bm-menu .ptb-bm-button:focus-visible {
+  border-color: var(--ptb-bm-accent);
+}
+
+.ptb-bm-grip {
+  display: none;
+}
+
+.ptb-bm-grip[draggable="true"] {
+  display: block;
+  color: var(--ptb-bm-text);
+  cursor: grab;
+  user-select: none;
+}
+
+.ptb-bm-dragging {
+  opacity: 0.45;
+}
+
+[data-ptb-drop="into"] {
+  outline: 2px solid var(--ptb-bm-accent);
+  outline-offset: -1px;
+}
+
+.ptb-bm-gap {
+  position: relative;
+  flex: none;
+  height: 8px;
+}
+
+.ptb-bm-gap:first-child, .ptb-bm-gap:last-child {
+  height: 4px;
+}
+.ptb-bm-gap[data-ptb-drop]::after {
+  position: absolute;
+  content: "";
+  inset: calc(50% - 1px) 0 auto;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ptb-bm-accent);
+  pointer-events: none;
+}

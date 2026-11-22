@@ -336,6 +336,74 @@ input {
   background: #ffe7e7;
 }
 
+/* PoE 1 shares the trade sidebar's brown surfaces and gold controls. */
+html.ptb-game-poe1 {
+  color-scheme: dark;
+  color: #f1e6cd;
+  background: #14100a;
+}
+
+.ptb-game-poe1 :is(body, .popup-header) {
+  background: #14100a;
+  border-color: rgba(255, 214, 128, 0.2);
+}
+
+.ptb-game-poe1 .popup-header h1,
+.ptb-game-poe1 .lang-btn {
+  color: #f7e1a6;
+}
+
+.ptb-game-poe1 :is(.lang-btn, .lang-menu, .bookmark-card, .bookmark-title-input) {
+  border-color: rgba(255, 214, 128, 0.35);
+  background: #1d1810;
+}
+
+.ptb-game-poe1 .bookmark-card { border-color: rgba(255, 255, 255, 0.08); }
+.ptb-game-poe1 :is(.bookmark-title, .bookmark-title-input) { color: #f4ead2; }
+.ptb-game-poe1 :is(.bookmark-game-title, .empty-state) { color: #9a8f76; }
+.ptb-game-poe1 .lang-opt { color: #f1e6cd; }
+.ptb-game-poe1 .bookmark-pencil { color: #d8bd84; }
+.ptb-game-poe1 .bookmark-low { color: #e8cd92; }
+
+.ptb-game-poe1 .bookmark-icon {
+  border-color: rgba(255, 214, 128, 0.25);
+  color: #c9b07e;
+  background: #100c07;
+}
+
+.ptb-game-poe1 .realm-badge {
+  color: #9fd2ff;
+  border-color: rgba(143, 214, 255, 0.4);
+  background: transparent;
+}
+
+.ptb-game-poe1 .league-badge {
+  color: #c9a3e8;
+  border-color: rgba(201, 163, 232, 0.4);
+  background: transparent;
+}
+
+.ptb-game-poe1 .filter-chip {
+  color: #e8cd92;
+  border-color: rgba(255, 214, 128, 0.35);
+  background: rgba(255, 214, 128, 0.08);
+}
+
+.ptb-game-poe1 .button-primary {
+  color: #ffe9b0;
+  border-color: rgba(255, 214, 128, 0.55);
+  background: #4a3814;
+}
+
+.ptb-game-poe1 .button-danger {
+  color: #f0b3b3;
+  border-color: rgba(220, 150, 150, 0.5);
+  background: #2a2212;
+}
+
+.ptb-game-poe1 :is(.button, .lang-btn, .lang-opt, .bookmark-pencil):hover,
+.ptb-game-poe1 .lang-opt.ptb-on { background: #352a16; }
+
 /* ── PoE 2: 차가운 철/은 다크 ── */
 html.ptb-game-poe2 {
   color-scheme: dark;

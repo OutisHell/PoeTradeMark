@@ -138,16 +138,32 @@
   }
 
   async function refresh() {
-    const items = await PTB.storage.list(await getActiveGame());
+    const version = ++refreshVersion;
+    const game = await getActiveGame();
+    const view = await PTB.storage.listView(game);
+    if (version !== refreshVersion) return;
+    document.documentElement.classList.toggle("ptb-game-poe1", game === "poe1");
+    document.documentElement.classList.toggle("ptb-game-poe2", game === "poe2");
+    document.body.classList.toggle("ptb-game-poe2", game === "poe2");
+    PTB.renderCollectionControls(document.querySelector(".ptb-collection-controls"), game, view, refresh);
+    const scope = [game, view.collectionId].join(":");
+    if (listEl.dataset.ptbScope === scope && listEl.querySelector(".ptb-bm-dragging, .ptb-bm-form")) return;
+    listEl.dataset.ptbScope = scope;
 
-    if (!items.length) {
+    if (!game && !view.bookmarks.length) {
       setEmptyState();
       return;
     }
 
-    clearList();
-    for (const bookmark of items) listEl.appendChild(createBookmarkCard(bookmark));
+    PTB.renderBookmarkGroups(listEl, view, {
+      game,
+      buildRow: createBookmarkCard,
+      gripSelector: ".ptb-bm-grip",
+      refresh: () => refresh().catch(console.error),
+    });
   }
+
+  let refreshVersion = 0;
 
   function createBookmarkCard(bookmark) {
     const card = makeElement("article", "bookmark-card");
@@ -189,6 +205,9 @@
       input.focus();
       input.select();
     });
+    const grip = makeElement("span", "ptb-bm-grip", "⋮⋮");
+    grip.title = message("folderDrag", "Drag bookmark");
+    nameRow.appendChild(grip);
     nameRow.appendChild(pencil);
     nameRow.appendChild(heading);
     const meta = makeElement("div", "bookmark-meta");
@@ -216,11 +235,13 @@
     }
 
     const actions = makeElement("div", "bookmark-actions");
-    actions.appendChild(iconButton("button button-primary", "chevronsRight", message("jump", "Go to search"), (e) => {
-      const url = PTB.buildTradeUrl(bookmark);
+    const navigate = (url, e) => {
       if (e && (e.ctrlKey || e.metaKey)) chrome.tabs.create({ url });
       else navigateActiveTab(url);
-    }));
+    };
+    const jump = iconButton("button button-primary", "chevronsRight", message("jump", "Go to search"),
+      (e) => navigate(PTB.buildTradeUrl(bookmark), e));
+    actions.appendChild(PTB.tradeRegion.splitButton(jump, bookmark, navigate));
     actions.appendChild(iconButton("button button-danger", "trash", message("delete", "Delete"), async () => {
       await PTB.storage.remove(bookmark.id);
       await refresh();
@@ -234,7 +255,7 @@
 
   function applyStaticLabels() {
     if (titleEl) titleEl.textContent = message("popupTitle", "PoE TradeMark");
-    const btn = document.querySelector(".lang-btn");
+    const btn = document.querySelector("#lang-wrap .lang-btn");
     if (btn) btn.title = message("language", "Language");
   }
 
@@ -294,14 +315,13 @@
 
     applyStaticLabels();
     setupLangSelect();
-
-    try {
-      const game = await getActiveGame();
-      document.documentElement.classList.toggle("ptb-game-poe2", game === "poe2");
-      document.body.classList.toggle("ptb-game-poe2", game === "poe2");
-    } catch (_e) {
-      // ignore
-    }
+    document.getElementById("ptb-redirect-slot").append(PTB.createRedirectControl(false));
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && (changes.bookmarks || changes.bookmarkFolders || changes.bookmarkRootOrder ||
+          changes.bookmarkRecentGroups || changes.bookmarkCollections || changes.bookmarkActiveCollections || changes.bookmarkDefaultCollections)) {
+        refresh().catch(console.error);
+      }
+    });
 
     try {
       await refresh();

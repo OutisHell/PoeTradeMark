@@ -41,10 +41,12 @@ PTB.decodePathPart = function (value) {
   }
 };
 
-// pathname 만 보고 게임 구분. 검색 ID 없는 /trade, /trade2 페이지도 인식.
+// 공식 거래소에서만 현재 게임을 정한다. 다른 사이트의 /trade는 백업 범위를 정할 수 없다.
 PTB.gameFromUrl = function (href) {
   try {
-    const path = new URL(href).pathname || "";
+    const { protocol, hostname, pathname: path } = new URL(href);
+    if (!["https:", "http:"].includes(protocol) ||
+        !(hostname === "poe.kakaogames.com" || /(^|\.)pathofexile\.(com|tw)$/.test(hostname))) return null;
     if (path === "/trade2" || path.indexOf("/trade2/") === 0) return "poe2";
     if (path === "/trade" || path.indexOf("/trade/") === 0) return "poe1";
     return null;
@@ -62,11 +64,12 @@ PTB.parseTradeUrl = function (href) {
     const m =
       url.pathname.match(/^\/trade\/(search|exchange)\/([^/]+)\/([^/]+)\/?$/) ||
       url.pathname.match(/^\/trade2\/(search|exchange)\/poe2\/([^/]+)\/([^/]+)\/?$/);
-    if (!m) return null;
+    const game = PTB.gameFromUrl(href);
+    if (!m || !game) return null;
     return {
       host: url.host,
       realm: PTB.hostToRealm(url.host),
-      game: PTB.gameFromUrl(href) || "poe1",
+      game,
       type: m[1],
       league: PTB.decodePathPart(m[2]),
       searchId: m[3],

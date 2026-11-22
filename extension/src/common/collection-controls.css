@@ -1,0 +1,91 @@
+.ptb-collection-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+.ptb-sidebar .ptb-collection-controls {
+  margin: 4px 10px;
+}
+.ptb-collection-controls[hidden],
+.ptb-collection-controls:empty {
+  display: none;
+}
+.ptb-collection-form,
+.ptb-collection-confirm {
+  display: flex;
+  align-items: center;
+  flex: 1 1 100%;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+}
+.ptb-collection-confirm, .ptb-collection-review {
+  flex-wrap: wrap;
+}
+.ptb-collection-confirm span, .ptb-collection-review > :is(span, select, input),
+.ptb-collection-controls :is([role="alert"], [role="status"]) {
+  flex: 1 0 100%;
+  overflow-wrap: anywhere;
+}
+.ptb-collection-controls .ptb-collection-review > :is(select, input) { flex-basis: 100%; }
+.ptb-collection-review [hidden] { display: none; }
+.ptb-collection-controls :is(select, button, input) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 6px;
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 4px;
+  background: var(--ptb-bm-fill);
+  color: var(--ptb-bm-text);
+  font: inherit;
+  line-height: 1.35;
+}
+.ptb-collection-controls :is(select, input) {
+  flex: 1 1 0;
+  max-width: 100%;
+}
+.ptb-collection-controls button {
+  min-width: 26px;
+  cursor: pointer;
+}
+.ptb-collection-menu {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  margin: 0;
+  min-width: min(136px, calc(100vw - 8px));
+  max-width: calc(100vw - 8px);
+  max-height: calc(100vh - 8px);
+  overflow: auto;
+  padding: 4px;
+  background: var(--ptb-bm-fill);
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 5px;
+  box-shadow: 0 3px 12px #0004;
+  color: var(--ptb-bm-text);
+  font: 12px/1.4 system-ui, sans-serif;
+}
+.ptb-collection-menu:popover-open { display: grid; }
+.ptb-collection-menu button {
+  border: 0;
+  padding: 4px 8px;
+  text-align: start;
+}
+.ptb-collection-menu button:hover, .ptb-collection-menu button:focus-visible {
+  background: color-mix(in srgb, var(--ptb-bm-accent) 15%, var(--ptb-bm-fill));
+  outline: 1px solid var(--ptb-bm-accent);
+  outline-offset: -1px;
+}
+.ptb-collection-menu hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--ptb-bm-border);
+  margin: 3px 0;
+}
+.ptb-collection-controls :is(button:hover, button:focus-visible, select:focus-visible, input:focus-visible) {
+  border-color: var(--ptb-bm-accent);
+}

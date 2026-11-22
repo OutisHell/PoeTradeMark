@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PoE TradeMark</title>
     <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="../common/bookmark-list.css">
+    <link rel="stylesheet" href="../common/collection-controls.css">
+    <link rel="stylesheet" href="../common/trade-region.css">
   </head>
   <body>
     <main class="popup-shell">
@@ -12,12 +15,19 @@
         <h1 id="popup-title">PoE TradeMark</h1>
         <div class="lang-wrap" id="lang-wrap"></div>
       </header>
+      <div id="ptb-redirect-slot"></div>
+      <div class="ptb-collection-controls" hidden></div>
       <section id="list" class="bookmark-list" aria-live="polite"></section>
     </main>
 
     <script src="../common/i18n.js"></script>
     <script src="../common/url.js"></script>
+    <script src="../common/trade-region.js"></script>
+    <script src="../common/redirect-control.js"></script>
     <script src="../common/storage.js"></script>
+    <script src="../common/backup.js"></script>
+    <script src="../common/collection-controls.js"></script>
+    <script src="../common/bookmark-list.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

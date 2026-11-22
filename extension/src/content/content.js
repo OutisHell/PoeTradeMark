@@ -16,6 +16,7 @@
     feedbackTimer: 0,
     sidebar: null,
     sidebarOpen: false,
+    redirectSettings: undefined,
   };
 
   const message = (key, fallback) => {
@@ -327,6 +328,7 @@
       const hrefChanged = state.href !== href;
       state.href = href;
       applyGameTheme();
+      renderPreferredSiteLink();
 
       if (info) {
         ensureButton();
@@ -408,6 +410,7 @@
   };
 
   const ICO = {
+    redirect: [["path", { d: "M3 20v-6a4 4 0 0 1 4-4h14m-6-6 6 6-6 6" }]],
     chevronsRight: [
       ["path", { d: "m6 17 5-5-5-5" }],
       ["path", { d: "m13 17 5-5-5-5" }],
@@ -729,62 +732,18 @@
         await PTB.storage.remove(bookmark.id);
       } catch (_error) {}
     });
-    actions.appendChild(jumpBtn);
+    actions.appendChild(PTB.tradeRegion.splitButton(jumpBtn, bookmark));
     actions.appendChild(copyBtn);
     actions.appendChild(deleteBtn);
 
     const grip = sbEl("span", "ptb-sb-rategrip", "⋮⋮");
-    grip.draggable = true;
-    grip.addEventListener("dragstart", (e) => {
-      fx.bmDragId = bookmark.id;
-      try {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", bookmark.id);
-      } catch (_e) {}
-      row.classList.add("ptb-dragging");
-    });
-    grip.addEventListener("dragend", () => {
-      fx.bmDragId = "";
-      row.classList.remove("ptb-dragging");
-      commitBookmarkOrder(row.parentNode);
-    });
-    row.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      placeDraggingBookmark(row, e.clientY);
-    });
-    row.addEventListener("drop", (e) => e.preventDefault());
+    grip.title = message("folderDrag", "Drag bookmark");
 
     row.appendChild(grip);
     row.appendChild(thumb);
     row.appendChild(main);
     row.appendChild(actions);
     return row;
-  };
-
-  const placeDraggingBookmark = (overRow, clientY) => {
-    const list = overRow && overRow.parentNode;
-    if (!list) return;
-    const dragging = list.querySelector(".ptb-sb-row.ptb-dragging");
-    if (!dragging || dragging === overRow) return;
-    const rect = overRow.getBoundingClientRect();
-    const after = clientY > rect.top + rect.height / 2;
-    if (after) {
-      if (overRow.nextSibling === dragging) return;
-      list.insertBefore(dragging, overRow.nextSibling);
-    } else {
-      if (dragging.nextSibling === overRow) return;
-      list.insertBefore(dragging, overRow);
-    }
-  };
-
-  const commitBookmarkOrder = (list) => {
-    if (!list || !PTB.storage.reorder) return;
-    const ids = [];
-    list.querySelectorAll(".ptb-sb-row[data-id]").forEach((row) => {
-      if (row.dataset.id) ids.push(row.dataset.id);
-    });
-    const game = currentGame();
-    PTB.storage.reorder(game, ids).catch(() => {});
   };
 
   const bookmarkMatches = (bookmark, q) => {
@@ -795,24 +754,30 @@
     return title.indexOf(needle) !== -1 || item.indexOf(needle) !== -1;
   };
 
+  let sidebarListVersion = 0;
   const renderSidebarList = async () => {
     try {
       const list = state.sidebar && state.sidebar.querySelector(".ptb-sb-list");
       if (!list) return;
+      const version = ++sidebarListVersion;
       const game = currentGame();
-      let items = await PTB.storage.list(game);
+      const view = await PTB.storage.listView(game);
+      if (version !== sidebarListVersion || game !== currentGame()) return;
+      PTB.renderCollectionControls(state.sidebar.querySelector(".ptb-collection-controls"), game, view, renderSidebarList);
+      if (list.dataset.ptbGame === game && list.dataset.ptbCollection === view.collectionId &&
+          list.querySelector(".ptb-bm-dragging, .ptb-bm-form")) return;
+      list.dataset.ptbGame = game || "";
+      list.dataset.ptbCollection = view.collectionId || "";
       const q = String(fx.bmQuery || "").trim();
-      if (q) items = items.filter((b) => bookmarkMatches(b, q));
-      list.textContent = "";
-      if (!items.length) {
-        list.appendChild(sbEl("p", "ptb-sb-empty", message("emptyList", "No bookmarks yet.")));
-        return;
-      }
-      for (const bookmark of items) {
-        const row = buildSidebarRow(bookmark);
-        row.dataset.id = bookmark.id;
-        list.appendChild(row);
-      }
+      if (q) view.bookmarks = view.bookmarks.filter((bookmark) => bookmarkMatches(bookmark, q));
+      PTB.renderBookmarkGroups(list, view, {
+        game,
+        buildRow: buildSidebarRow,
+        gripSelector: ".ptb-sb-rategrip",
+        refresh: renderSidebarList,
+        canReorder: !q,
+        searching: Boolean(q),
+      });
     } catch (_error) {
       // best-effort
     }
@@ -828,6 +793,7 @@
     header.appendChild(buildLinkBtn("poedb", "PoEDB"));
     header.appendChild(buildLinkBtn("ninja", "poe.ninja"));
     header.appendChild(buildLinkBtn("github", "GitHub"));
+    header.appendChild(PTB.createRedirectControl(true, lucideEl("redirect")));
     const searchBtn = sbEl("button", "ptb-sb-searchbtn");
     searchBtn.type = "button";
     setIconBtn(searchBtn, "search", message("searchBookmarks", "Search"));
@@ -936,6 +902,7 @@
     rateHits.hidden = true;
     ratePanel.appendChild(rateHits);
     sidebar.appendChild(ratePanel);
+    sidebar.appendChild(sbEl("div", "ptb-collection-controls"));
     sidebar.appendChild(sbEl("div", "ptb-sb-list"));
     // 사이드바 휠은 거래소 본문으로 보내지 않음. 언어 메뉴·환율 패널이 스크롤 가능하면 그쪽 우선.
     sidebar.addEventListener(
@@ -1003,12 +970,48 @@
     document.body.appendChild(toggle);
   };
 
+  function renderPreferredSiteLink() {
+    const code = state.redirectSettings?.code;
+    const destination = code && code !== PTB.hostToRealm(location.hostname)
+      ? PTB.tradeRegion.preferredUrl(location.href, state.redirectSettings) : null;
+    let link = document.getElementById("ptb-preferred-site");
+    if (!destination || !document.body) {
+      link?.remove();
+      return;
+    }
+    if (!link) {
+      link = document.createElement("a");
+      link.id = "ptb-preferred-site";
+      link.className = "ptb-sidebar-toggle";
+      // The trade app can change the search before the next URL poll.
+      for (const event of ["click", "auxclick", "contextmenu"]) link.addEventListener(event, renderPreferredSiteLink);
+      document.body.appendChild(link);
+    }
+    link.href = destination;
+    link.textContent = code.toUpperCase();
+    link.title = message("openPreferredTradeSite", "Open on preferred trade site") + " · " + link.textContent;
+    link.setAttribute("aria-label", link.title);
+  }
+
   const initSidebar = () => {
     try {
       ensureSidebarToggle();
       chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === "local" && changes.bookmarks && state.sidebarOpen) renderSidebarList();
+        if (area === "local" && changes.ptbRedirectSettings) {
+          state.redirectSettings = changes.ptbRedirectSettings.newValue || null;
+          renderPreferredSiteLink();
+        }
+        if (area === "local" && state.sidebarOpen &&
+            (changes.bookmarks || changes.bookmarkFolders || changes.bookmarkRootOrder || changes.bookmarkRecentGroups ||
+             changes.bookmarkCollections || changes.bookmarkActiveCollections || changes.bookmarkDefaultCollections)) {
+          renderSidebarList();
+        }
       });
+      chrome.runtime.sendMessage({ cmd: "ptb-redirect-settings" }).then(({ settings }) => {
+        if (state.redirectSettings !== undefined) return;
+        state.redirectSettings = settings?.configured ? settings : null;
+        renderPreferredSiteLink();
+      }).catch(() => {});
       chrome.storage.local
         .get(SIDEBAR_OPEN_KEY)
         .then((result) => {
@@ -1040,7 +1043,6 @@
     game: null,
     bmQuery: "",
     bmSearchOpen: false,
-    bmDragId: "",
   };
 
   const uiLang = () => {
@@ -1791,6 +1793,8 @@
   };
 
   const start = () => {
+    const cleanUrl = PTB.tradeRegion.stripOverride(location.href);
+    if (cleanUrl) history.replaceState(history.state, "", cleanUrl);
     if (globalThis.PTB && PTB.i18n) {
       // 초기 로드 + 언어 변경(이 탭/팝업/대시보드 어디서든) 시 사이드바 UI 갱신.
       const applyLocale = function () {
@@ -1807,7 +1811,7 @@
             if (si) si.placeholder = message("searchBookmarks", "Search");
             const sc = state.sidebar.querySelector(".ptb-sb-searchclear");
             if (sc) sc.title = message("clearSearch", "Clear");
-            const db = state.sidebar.querySelectorAll(".ptb-sb-extlink");
+            const db = state.sidebar.querySelectorAll("a.ptb-sb-extlink");
             if (db[0]) db[0].title = message("openPoedb", "PoEDB");
             if (db[1]) db[1].title = message("openNinja", "poe.ninja");
             if (db[2]) db[2].title = message("openGithub", "GitHub");

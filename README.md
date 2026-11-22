@@ -1,41 +1,52 @@
 # PoE TradeMark
 
-A Chrome extension that bookmarks official Path of Exile and Path of Exile 2 trade searches and converts listing prices with poe.ninja exchange rates.
+PoE TradeMark is a Chrome extension for saving Path of Exile and Path of Exile 2 trade searches. Reopen a search from your bookmarks, share a collection with another player, or open trade links with your preferred league and trade mode. Each game has its own bookmark list.
 
-This is an unofficial fan tool and is not affiliated with Grinding Gear Games. It is read-only on the trade site: it never auto-whispers, auto-buys, or auto-travels.
+## Install in Chrome
 
-## Features
+1. Clone or download this repository. If you downloaded a ZIP, extract it.
+2. Open `chrome://extensions` and enable **Developer mode**.
+3. Click **Load unpacked**, select the repository’s `extension` folder, and refresh your trade tab.
 
-- Save the current search and reopen it from a right-hand sidebar
-- Rename, copy, delete, drag to reorder, and search your bookmarks
-- Split PoE1 (`/trade`) and PoE2 (`/trade2`) lists by URL
-- Korean, global, Taiwan, and other regional trade sites
-- Price conversion from poe.ninja, a base-currency picker, and a two-currency rate table
-- UI languages: 한국어, English, 日本語, Español, Français, Deutsch, ไทย, Русский, Português, 繁體中文
-- Header links to PoEDB, poe.ninja, and this repository
+## Save your first search
 
-## Install (Chrome unpacked)
+1. On the English PoE1 trade site, type **Headhunter** in the item search. Choose **Headhunter Leather Belt** under **Accessories**, then click **Search**.
+2. With the results on screen, click the **star** at the bottom right. A green check confirms that the search was saved to your selected collection.
+3. Click the **list** button just above the star. You’ll see **Headhunter Leather Belt** in the sidebar. Use **»** to reopen the search later or the pencil to rename it. You can also open your bookmarks from the extension icon in Chrome.
 
-1. Clone this repository.
-2. Open `chrome://extensions` in Chrome.
-3. Turn on **Developer mode**.
-4. Click **Load unpacked** and select the **`extension`** folder inside the repo.
-   - Load `extension`, not the repository root.
-5. Refresh the trade tab. After code changes, **Reload** the extension, then refresh the tab.
+![The English PoE1 trade page and extension together: select Headhunter Leather Belt, run the search, click the bookmark star, and find the saved search in the sidebar.](docs/images/save-headhunter.gif)
 
-## Supported trade sites
+## Organize and share bookmarks
 
-- Korea: `https://poe.kakaogames.com/trade`, `/trade2`
-- Global: `https://www.pathofexile.com/trade`, `/trade2`, and language subdomains
-- Taiwan: `https://pathofexile.tw/trade`, `/trade2`
+A **collection** is a list you can switch or share, such as the gear searches for one build. A **group** keeps related bookmarks together inside that list.
 
-## Usage
+- **Collections.** Use the selector above your bookmarks to switch lists and **+** to create one. The **⋯** menu lets you rename or delete the selected collection, including the starting **My bookmarks** collection. Deleting a collection also deletes its bookmarks and groups. If you delete your last collection, you get an empty list for your next search.
+- **Groups.** Drag a bookmark onto another to group them, or drop it on the line between entries to reorder it. Click a group name to expand or collapse it. Right-click a bookmark for **Move to group**, or right-click a bookmark or group for **Move to collection**.
+- **Share a collection.** Choose **⋯ → Export collection** to download its bookmarks, groups and order as JSON. On the same game's trade site, choose **⋯ → Import collection** to load the file. You can merge it into the current collection, replace the current collection after confirmation, or create a new collection.
 
-1. Open a trade search or currency exchange page.
-2. Use the **Bookmark** button (bottom right) to save the current search.
-3. Open the **list** button for the sidebar. The jump icon on a row returns you to that search.
-4. Use the sidebar for a base currency and the rate table. Rates come from poe.ninja and are cached for about 30 minutes.
+<img src="docs/images/collection-menu.png" width="340" alt="The Atlas gear collection with its More menu open, showing Rename, Import, Export and Delete collection.">
 
-## License / assets
+## Open searches with your trade preferences
 
-The code follows this repository. Currency icons are Path of Exile game assets owned by GGG, bundled only for display in the extension.
+Open **Preferences** in the popup or click the redirect arrow beside GitHub in the sidebar. When you choose a trade site, its country code appears on the button.
+
+<img src="docs/images/trade-preferences.png" width="304" alt="Preferences with the English trade site, Standard league and Instant Buyout selected, Auto-redirect on and the Current page snapshot button below.">
+
+| What you want to do | How |
+| --- | --- |
+| Open incoming links with your usual settings | Choose a trade site, league or trade mode and turn on **Auto-redirect**. Leave any field at **—** to keep the value from the link. League and trade mode are saved per game. |
+| Use the settings from a search you already have open | Run the search, then click **Current page snapshot** to save its site, league and trade mode as your preferences. |
+| Follow the regular challenge league each season | Choose **Current challenge league (softcore)**. The list comes from the official trade site. Click the refresh arrow beside **League** to fetch it again. |
+| Switch sites for just one visit | Use the country-code button on the trade page to apply your preferences manually. To open a bookmark on a specific country’s site for one visit, use the dropdown beside its double arrow. |
+
+The extension supports the Korean, global and international-language trade sites. Taiwan bookmarks open on the Taiwan trade site. If a search cannot be converted, you can open the original link.
+
+## Compare prices
+
+In the sidebar, choose a base currency to see listing prices converted with poe.ninja rates. For example, select **Divine Orb** to compare prices listed in different currencies. Open the rate table and use its edit button to save currency pairs you check often.
+
+## Credits and privacy
+
+PoE TradeMark is an unofficial fan project. Path of Exile and the bundled currency icons belong to Grinding Gear Games. Bookmarks and preferences are stored locally in Chrome. [Privacy policy](PRIVACY.md)
+
+Item-name translations use community game data and the Korean trade catalog. [PoE1 translations](https://github.com/gw1108/PathOfExile_Translated) · [PoE2 translations](https://github.com/Kvan7/Exiled-Exchange-2) · [Korean game data](https://github.com/west-duo/poe-game-data)
