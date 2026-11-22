@@ -1,0 +1,21 @@
+{
+  "extName": { "message": "PoE TradeMark" },
+  "extDesc": { "message": "Bookmark Path of Exile 1 and 2 trade searches, share collections, and open links on your preferred trade site." },
+  "bookmarkButton": { "message": "★ Bookmark" },
+  "popupTitle": { "message": "Trade bookmarks" },
+  "jump": { "message": "Go to search" },
+  "rename": { "message": "Rename" },
+  "delete": { "message": "Delete" },
+  "emptyList": { "message": "No bookmarks yet." },
+  "realmKR": { "message": "Korea" },
+  "realmGlobal": { "message": "Global" },
+  "saved": { "message": "Saved" },
+  "noTitle": { "message": "Untitled" },
+  "sidebarToggle": { "message": "★ Bookmarks" },
+  "openDash": { "message": "📡 Live" },
+  "openDashboard": { "message": "📡 Live dashboard" },
+  "openInTrade": { "message": "Open on trade site" },
+  "liveWaiting": { "message": "Waiting for new listings…" },
+  "liveIdle": { "message": "Choose a search and click Start to see live listings here." },
+  "goHideout": { "message": "🏠 Visit hideout" }
+}

@@ -814,7 +814,12 @@ globalThis.PTB = globalThis.PTB || {};
     tw: "繁體中文",
   };
   var LANGS = ["ko", "en", "ja", "es", "fr", "de", "th", "ru", "pt", "tw"];
-  var cur = "ko";
+  function browserLanguage() {
+    const base = (globalThis.navigator?.language || "en").toLowerCase().split("-")[0];
+    if (base === "zh") return "tw";
+    return LANGS.includes(base) ? base : "en";
+  }
+  var cur = browserLanguage();
   var cbs = []; // 언어 변경 시 재렌더 콜백(컨텍스트별 등록)
 
   PTB.i18n = {
@@ -840,23 +845,12 @@ globalThis.PTB = globalThis.PTB || {};
       if (v == null && M.en) v = M.en[key];
       return v != null ? v : fallback != null ? fallback : key;
     },
-    // 저장된 언어 로드(없으면 브라우저 언어 매핑, 그래도 없으면 ko). 렌더 전에 await.
+    // 저장된 선택을 우선하고, 첫 실행에는 브라우저 언어를 사용한다.
     init: function () {
       try {
         return chrome.storage.local.get("ptbLang").then(function (r) {
           var saved = r && r.ptbLang;
-          if (saved && M[saved]) {
-            cur = saved;
-            return cur;
-          }
-          var nav = String(navigator.language || "ko").toLowerCase();
-          if (nav.indexOf("zh-tw") === 0 || nav.indexOf("zh-hant") === 0 || nav.indexOf("zh-hk") === 0) {
-            cur = "tw";
-            return cur;
-          }
-          var base = nav.split("-")[0];
-          if (base === "zh") cur = "tw";
-          else cur = M[base] ? base : "ko";
+          cur = LANGS.includes(saved) ? saved : browserLanguage();
           return cur;
         });
       } catch (_e) {
@@ -870,7 +864,7 @@ globalThis.PTB = globalThis.PTB || {};
     chrome.storage.onChanged.addListener(function (changes, area) {
       if (area !== "local" || !changes.ptbLang) return;
       var nl = changes.ptbLang.newValue;
-      if (nl && M[nl]) cur = nl;
+      cur = LANGS.includes(nl) ? nl : browserLanguage();
       for (var i = 0; i < cbs.length; i += 1) {
         try {
           cbs[i](cur);
