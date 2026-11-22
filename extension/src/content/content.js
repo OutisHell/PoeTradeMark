@@ -790,7 +790,7 @@
     const header = sbEl("div", "ptb-sb-header");
     const mark = document.createElement("img");
     mark.src = chrome.runtime.getURL("icons/icon48.png");
-    mark.alt = "PoE TradeMark";
+    mark.alt = "PoE Trade Mark";
     mark.width = mark.height = 26;
     mark.draggable = false;
     header.appendChild(mark);

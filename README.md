@@ -1,8 +1,8 @@
-# PoE TradeMark
+# PoE Trade Mark
 
 English · [한국어](#한국어)
 
-PoE TradeMark is a Chrome extension for saving Path of Exile and Path of Exile 2 trade searches. Reopen a search from your bookmarks, share a collection with another player, or open trade links with your preferred league and trade mode. Each game has its own bookmark list.
+PoE Trade Mark is a Chrome extension for saving Path of Exile and Path of Exile 2 trade searches. Reopen a search from your bookmarks, share a collection with another player, or open trade links with your preferred league and trade mode. Each game has its own bookmark list.
 
 ## Install in Chrome
 
@@ -63,7 +63,7 @@ In the sidebar, choose a base currency to see listing prices converted with poe.
 
 ## Credits and privacy
 
-PoE TradeMark is an unofficial fan project. Path of Exile and the bundled currency icons belong to Grinding Gear Games. Bookmarks and preferences are stored locally in Chrome. [Privacy policy](PRIVACY.md)
+PoE Trade Mark is an unofficial fan project. Path of Exile and the bundled currency icons belong to Grinding Gear Games. Bookmarks and preferences are stored locally in Chrome. [Privacy policy](PRIVACY.md)
 
 Item-name translations use community game data and the Korean trade catalog. [PoE1 translations](https://github.com/gw1108/PathOfExile_Translated) · [PoE2 translations](https://github.com/Kvan7/Exiled-Exchange-2) · [Korean game data](https://github.com/west-duo/poe-game-data)
 
@@ -71,9 +71,9 @@ Item-name translations use community game data and the Korean trade catalog. [Po
 
 ## 한국어
 
-[English](#poe-trademark) · 한국어
+[English](#poe-trade-mark) · 한국어
 
-PoE TradeMark는 **패스 오브 엑자일 1과 2의 거래소 검색 조건을 즐겨찾기로 저장하는 크롬 확장 프로그램**입니다. 저장한 검색을 다시 열거나, 빌드 하나에 필요한 검색을 컬렉션으로 묶어 다른 사람과 공유할 수 있습니다. 거래소 링크를 열 때 원하는 국가, 리그, 거래 방식도 적용할 수 있습니다. 현재 거래소 주소에 맞춰 각 게임의 컬렉션을 보여줍니다.
+PoE Trade Mark는 **패스 오브 엑자일 1과 2의 거래소 검색 조건을 즐겨찾기로 저장하는 크롬 확장 프로그램**입니다. 저장한 검색을 다시 열거나, 빌드 하나에 필요한 검색을 컬렉션으로 묶어 다른 사람과 공유할 수 있습니다. 거래소 링크를 열 때 원하는 국가, 리그, 거래 방식도 적용할 수 있습니다. 현재 거래소 주소에 맞춰 각 게임의 컬렉션을 보여줍니다.
 
 ### 크롬에 설치하기
 
@@ -137,6 +137,6 @@ PoE TradeMark는 **패스 오브 엑자일 1과 2의 거래소 검색 조건을 
 
 ### 출처와 개인정보
 
-PoE TradeMark는 비공식 팬 프로젝트입니다. 패스 오브 엑자일과 확장 프로그램에 포함된 화폐 아이콘의 권리는 Grinding Gear Games에 있습니다. 즐겨찾기와 선호 설정은 크롬의 로컬 저장소에 보관합니다. [개인정보 처리방침](PRIVACY.md)
+PoE Trade Mark는 비공식 팬 프로젝트입니다. 패스 오브 엑자일과 확장 프로그램에 포함된 화폐 아이콘의 권리는 Grinding Gear Games에 있습니다. 즐겨찾기와 선호 설정은 크롬의 로컬 저장소에 보관합니다. [개인정보 처리방침](PRIVACY.md)
 
 아이템 이름 변환에는 커뮤니티 게임 데이터와 한국 거래소의 아이템 목록을 사용합니다. [POE1 번역 데이터](https://github.com/gw1108/PathOfExile_Translated) · [POE2 번역 데이터](https://github.com/Kvan7/Exiled-Exchange-2) · [한국어 게임 데이터](https://github.com/west-duo/poe-game-data)

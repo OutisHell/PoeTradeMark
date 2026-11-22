@@ -1,6 +1,6 @@
-# Privacy policy — PoE TradeMark
+# Privacy policy — PoE Trade Mark
 
-PoE TradeMark is a Chrome extension for bookmarking official Path of Exile and Path of Exile 2 trade searches.
+PoE Trade Mark is a Chrome extension for bookmarking official Path of Exile and Path of Exile 2 trade searches.
 
 **Last updated:** 2026-11-22
 

@@ -222,7 +222,7 @@
   function applyStaticLabels() {
     const lang = PTB.i18n?.getLang() || "en";
     document.documentElement.lang = lang === "tw" ? "zh-Hant" : lang;
-    if (titleEl) titleEl.textContent = message("popupTitle", "PoE TradeMark");
+    if (titleEl) titleEl.textContent = message("popupTitle", "PoE Trade Mark");
     const btn = document.querySelector("#lang-wrap .lang-btn");
     if (btn) btn.title = message("language", "Language");
   }
