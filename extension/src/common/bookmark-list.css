@@ -1,31 +1,3 @@
-.ptb-collection-controls,
-.bookmark-list,
-.ptb-sb-list {
-  --ptb-bm-accent: #2760a5;
-  --ptb-bm-border: #cfd6df;
-  --ptb-bm-fill: #fff;
-  --ptb-bm-text: #27313f;
-}
-
-.ptb-sidebar .ptb-collection-controls,
-.ptb-game-poe1 .ptb-collection-controls,
-.ptb-game-poe1 .bookmark-list,
-.ptb-sb-list {
-  --ptb-bm-accent: #ffd680;
-  --ptb-bm-border: #5b4b2e;
-  --ptb-bm-fill: #241a0e;
-  --ptb-bm-text: #f7e1a6;
-}
-
-.ptb-game-poe2 .ptb-collection-controls,
-.ptb-game-poe2 .bookmark-list,
-.ptb-game-poe2 .ptb-sb-list {
-  --ptb-bm-accent: #9bb9f2;
-  --ptb-bm-border: #526485;
-  --ptb-bm-fill: #202b40;
-  --ptb-bm-text: #e2eaff;
-}
-
 .ptb-bm-header,
 .ptb-bm-form {
   display: flex;

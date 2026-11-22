@@ -788,6 +788,12 @@
     if (!document.body) return null;
     const sidebar = sbEl("aside", "ptb-sidebar");
     const header = sbEl("div", "ptb-sb-header");
+    const mark = document.createElement("img");
+    mark.src = chrome.runtime.getURL("icons/icon48.png");
+    mark.alt = "PoE TradeMark";
+    mark.width = mark.height = 26;
+    mark.draggable = false;
+    header.appendChild(mark);
     header.appendChild(buildLinkBtn("poedb", "PoEDB"));
     header.appendChild(buildLinkBtn("ninja", "poe.ninja"));
     header.appendChild(buildLinkBtn("github", "GitHub"));
@@ -815,6 +821,7 @@
     if (globalThis.PTB && PTB.i18n) header.appendChild(buildLangPicker());
     const closeBtn = sbEl("button", "ptb-sb-close");
     closeBtn.type = "button";
+    closeBtn.setAttribute("aria-label", message("close", "Close"));
     closeBtn.appendChild(lucideEl("x", 14));
     closeBtn.addEventListener("click", () => setSidebarOpen(false));
     header.appendChild(closeBtn);
@@ -1796,6 +1803,7 @@
           if (toggle) setIconBtn(toggle, "list", message("sidebarToggle", "List"));
           reconcile();
           if (state.sidebar) {
+            state.sidebar.querySelector(".ptb-sb-close")?.setAttribute("aria-label", message("close", "Close"));
             const lb = state.sidebar.querySelector(".ptb-sb-langbtn");
             if (lb) lb.title = message("language", "Language");
             const sb = state.sidebar.querySelector(".ptb-sb-searchbtn");

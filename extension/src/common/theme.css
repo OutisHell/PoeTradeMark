@@ -1,0 +1,244 @@
+/* Shared finishes for the extension's two surfaces. Tokens never reach trade-page UI. */
+.ptb-sidebar, .ptb-popup {
+  --ptb-base: #171511;
+  --ptb-well: #1d1913;
+  --ptb-card: #26221c;
+  --ptb-edge: #443d31;
+  --ptb-bm-fill: #29251e;
+  --ptb-bm-border: #534a3b;
+  --ptb-bm-text: #f1ece2;
+  --ptb-muted: #c0b5a2;
+  --ptb-bm-accent: #e2bc7e;
+  --ptb-accent-fill: #483a26;
+  --ptb-accent-edge: #816943;
+  color-scheme: dark;
+  font-family: Inter, "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ptb-bm-text);
+  background: var(--ptb-base);
+  scrollbar-color: var(--ptb-bm-border) transparent;
+  scrollbar-width: thin;
+}
+.ptb-game-poe2 :is(.ptb-sidebar, .ptb-popup) {
+  background: var(--ptb-base);
+  --ptb-base: #101719;
+  --ptb-well: #141d20;
+  --ptb-card: #1c282b;
+  --ptb-edge: #344649;
+  --ptb-bm-fill: #223034;
+  --ptb-bm-border: #41565a;
+  --ptb-bm-text: #e6eeeb;
+  --ptb-muted: #afc2c0;
+  --ptb-bm-accent: #9bd6c7;
+  --ptb-accent-fill: #24423f;
+  --ptb-accent-edge: #497870;
+}
+
+.ptb-sidebar .ptb-sb-header, .ptb-popup .popup-header {
+  flex: none;
+  border-bottom: 1px solid var(--ptb-edge);
+  background: linear-gradient(110deg, var(--ptb-card), var(--ptb-base) 85%);
+  box-shadow: inset 0 2px var(--ptb-accent-edge);
+}
+.ptb-sb-header > img { flex: none; margin-inline-end: 2px; }
+@media (max-width: 360px) {
+  .ptb-sidebar .ptb-sb-header { gap: 4px; padding-inline: 8px; }
+}
+.ptb-popup .popup-header h1 {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -.035em;
+  color: var(--ptb-bm-text);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-extlink, .ptb-sb-searchbtn, .ptb-sb-langbtn, .ptb-sb-close, .lang-btn) {
+  border-color: var(--ptb-edge);
+  background-color: var(--ptb-well);
+  color: var(--ptb-muted);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-extlink, .ptb-sb-searchbtn, .ptb-sb-langbtn, .ptb-sb-close, .lang-btn):hover {
+  color: var(--ptb-bm-text);
+  border-color: var(--ptb-accent-edge);
+}
+.ptb-sb-header .ptb-redirect-trigger[data-enabled="true"] {
+  color: var(--ptb-bm-accent);
+  border-color: var(--ptb-accent-edge);
+  background: var(--ptb-accent-fill);
+}
+.ptb-sidebar .ptb-sb-searchbtn.ptb-on {
+  color: var(--ptb-bm-accent);
+  border-color: var(--ptb-accent-edge);
+  background: var(--ptb-accent-fill);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-langmenu, .lang-menu) {
+  border-color: var(--ptb-bm-border);
+  background: var(--ptb-card);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-langopt, .lang-opt) {
+  color: var(--ptb-bm-text);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-langopt, .lang-opt):is(:hover, .ptb-on) {
+  color: var(--ptb-bm-accent);
+  background: var(--ptb-accent-fill);
+}
+
+/* Collection title, group rail and selection hierarchy. */
+.ptb-popup > .ptb-collection-controls { margin: 4px 10px 0; }
+:is(.ptb-sidebar, .ptb-popup) .ptb-collection-controls :is(select, button, input) {
+  min-height: 28px;
+  border-radius: 5px;
+}
+:is(.ptb-sidebar, .ptb-popup) .ptb-collection-select { font-weight: 650; }
+:is(.ptb-sidebar, .ptb-popup) .ptb-collection-controls button[aria-pressed="true"] {
+  background: var(--ptb-accent-fill);
+  border-color: var(--ptb-accent-edge);
+  color: var(--ptb-bm-accent);
+}
+.ptb-bm-header {
+  border-color: var(--ptb-edge);
+  border-inline-start: 3px solid var(--ptb-accent-edge);
+  border-radius: 5px;
+  background: var(--ptb-well);
+}
+.ptb-bm-caret, .ptb-bm-filter-details > summary { color: var(--ptb-bm-accent); }
+.ptb-bm-items { border-color: var(--ptb-accent-edge); }
+.ptb-bm-empty, .ptb-popup :is(.empty-state, .bookmark-game-title) { color: var(--ptb-muted); }
+.ptb-bm-empty { padding: 14px 8px; }
+.ptb-batch-toolbar { row-gap: 7px; padding-block: 3px 6px; }
+
+:is(.ptb-sidebar, .ptb-popup) :is(.bookmark-card, .ptb-sb-row) {
+  border-color: var(--ptb-edge);
+  border-radius: 8px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ptb-card) 96%, white), var(--ptb-card) 58%);
+  box-shadow: 0 1px 3px #0003;
+}
+.ptb-batch-editing :is(.bookmark-card, .ptb-sb-row):has(.ptb-batch-check:checked) {
+  border-color: var(--ptb-bm-accent);
+  box-shadow: inset 3px 0 var(--ptb-bm-accent);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-thumb, .bookmark-icon) {
+  background: var(--ptb-well);
+  color: var(--ptb-bm-accent);
+  border-color: var(--ptb-bm-border);
+  border-radius: 6px;
+}
+.ptb-popup .bookmark-icon img { object-fit: contain; }
+:is(.ptb-sidebar, .ptb-popup) :is(.bookmark-title, .ptb-sb-title) {
+  color: var(--ptb-bm-text);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -.015em;
+}
+.ptb-popup .bookmark-meta { align-items: center; margin: 0 0 3px; min-width: 0; }
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-low, .bookmark-low) {
+  color: var(--ptb-bm-accent);
+  font-variant-numeric: tabular-nums;
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-realm, .realm-badge, .ptb-sb-league, .league-badge) {
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--ptb-edge);
+  border-radius: 4px;
+  color: var(--ptb-muted);
+  background: var(--ptb-well);
+  font-size: 11px;
+  line-height: 15px;
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-realm, .realm-badge) {
+  color: #b5ccdd;
+  font-weight: 650;
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-league, .league-badge) {
+  flex-shrink: 1;
+  margin-left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-chip, .filter-chip) {
+  color: var(--ptb-muted);
+  border-color: var(--ptb-edge);
+  border-radius: 4px;
+  background: transparent;
+  font-weight: 500;
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-pencil, .bookmark-pencil) { color: var(--ptb-muted); }
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-pencil, .bookmark-pencil):hover {
+  color: var(--ptb-bm-accent);
+  background: var(--ptb-accent-fill);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.bookmark-title-input, .ptb-sb-title-input) {
+  color: var(--ptb-bm-text);
+  border-color: var(--ptb-bm-accent);
+  background: var(--ptb-well);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-btn, .button) {
+  color: var(--ptb-muted);
+  border-color: var(--ptb-edge);
+  background: var(--ptb-well);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-jump, .button-primary) {
+  color: var(--ptb-bm-accent);
+  border-color: var(--ptb-accent-edge);
+  background: var(--ptb-accent-fill);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-btn, .button):hover {
+  color: var(--ptb-bm-text);
+  border-color: var(--ptb-muted);
+  background: var(--ptb-bm-fill);
+}
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-del, .button-danger):hover {
+  border-color: #ad746b;
+  color: #ffd7cf;
+  background: #492c2a;
+}
+
+.ptb-popup #ptb-redirect-slot { padding: 9px 10px 6px; }
+.ptb-popup .ptb-redirect-panel {
+  padding: 10px 12px;
+  border: 1px solid var(--ptb-edge);
+  border-radius: 8px;
+  background: var(--ptb-well);
+}
+:is(.ptb-sidebar, .ptb-popup) .ptb-redirect-panel {
+  color: var(--ptb-muted);
+  border-color: var(--ptb-bm-border);
+}
+.ptb-sidebar .ptb-redirect-panel[popover] { background: var(--ptb-card); }
+.ptb-redirect-panel .ptb-pref-heading { color: var(--ptb-bm-text); }
+.ptb-redirect-panel :is(select, .ptb-snapshot, .ptb-league-refresh) {
+  box-sizing: border-box;
+  min-height: 25px;
+  padding: 2px 6px;
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 4px;
+  color: var(--ptb-bm-text);
+  background: var(--ptb-bm-fill);
+}
+.ptb-redirect-panel select { width: 48%; }
+.ptb-redirect-panel .ptb-snapshot { color: var(--ptb-bm-accent); }
+.ptb-redirect-panel input[role="switch"]:checked { color: var(--ptb-bm-accent); }
+.ptb-sidebar :is(.ptb-sb-fxbar, .ptb-sb-ratepanel, .ptb-sb-searchbar) {
+  color: var(--ptb-muted);
+  border-color: var(--ptb-edge);
+  background: var(--ptb-well);
+}
+.ptb-sidebar :is(.ptb-sb-basebtn, .ptb-sb-ratebtn, .ptb-sb-rateslot, .ptb-sb-rateedit) {
+  color: var(--ptb-muted);
+  border-color: var(--ptb-edge);
+  background: var(--ptb-card);
+}
+.ptb-sidebar :is(.ptb-sb-basebtn, .ptb-sb-ratebtn, .ptb-sb-rateslot, .ptb-sb-rateedit).ptb-on {
+  color: var(--ptb-bm-accent);
+  border-color: var(--ptb-accent-edge);
+  background: var(--ptb-accent-fill);
+  box-shadow: inset 0 -2px var(--ptb-bm-accent);
+}
+:is(.ptb-popup, .ptb-sidebar) :is(button, a, select, input, summary):focus-visible {
+  outline: 2px solid var(--ptb-bm-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ptb-sidebar, .ptb-sidebar-toggle, body.ptb-has-sidebar { transition: none; }
+}

@@ -1,8 +1,8 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #20242c;
-  background: #f6f7f9;
+  color: #eee8de;
+  background: #171511;
 }
 
 * {
@@ -10,12 +10,12 @@
 }
 
 body {
-  width: 320px;
+  width: 340px;
   min-height: 60px;
-  max-height: 480px;
+  max-height: 560px;
   margin: 0;
   overflow: hidden;
-  background: #f6f7f9;
+  background: transparent;
 }
 
 button,
@@ -26,14 +26,14 @@ input {
 .popup-shell {
   display: flex;
   flex-direction: column;
-  max-height: 480px;
+  max-height: 560px;
 }
 
 .popup-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid #e2e5ea;
   background: #ffffff;
 }
@@ -213,13 +213,6 @@ input {
   white-space: nowrap;
 }
 
-/* Outside trade tabs the popup has a light background. Keep pale rarity text legible. */
-html:not(.ptb-game-poe1, .ptb-game-poe2) .ptb-rarity-title {
-  background: #151a22;
-  border-radius: 3px;
-  padding-inline: 4px;
-}
-
 .bookmark-meta {
   display: flex;
   gap: 6px;
@@ -341,203 +334,4 @@ html:not(.ptb-game-poe1, .ptb-game-poe2) .ptb-rarity-title {
 
 .button-danger:hover {
   background: #ffe7e7;
-}
-
-/* PoE 1 shares the trade sidebar's brown surfaces and gold controls. */
-html.ptb-game-poe1 {
-  color-scheme: dark;
-  color: #f1e6cd;
-  background: #14100a;
-}
-
-.ptb-game-poe1 :is(body, .popup-header) {
-  background: #14100a;
-  border-color: rgba(255, 214, 128, 0.2);
-}
-
-.ptb-game-poe1 .popup-header h1,
-.ptb-game-poe1 .lang-btn {
-  color: #f7e1a6;
-}
-
-.ptb-game-poe1 :is(.lang-btn, .lang-menu, .bookmark-card, .bookmark-title-input) {
-  border-color: rgba(255, 214, 128, 0.35);
-  background: #1d1810;
-}
-
-.ptb-game-poe1 .bookmark-card { border-color: rgba(255, 255, 255, 0.08); }
-.ptb-game-poe1 :is(.bookmark-title, .bookmark-title-input) { color: #f4ead2; }
-.ptb-game-poe1 :is(.bookmark-game-title, .empty-state) { color: #9a8f76; }
-.ptb-game-poe1 .lang-opt { color: #f1e6cd; }
-.ptb-game-poe1 .bookmark-pencil { color: #d8bd84; }
-.ptb-game-poe1 .bookmark-low { color: #e8cd92; }
-
-.ptb-game-poe1 .bookmark-icon {
-  border-color: rgba(255, 214, 128, 0.25);
-  color: #c9b07e;
-  background: #100c07;
-}
-
-.ptb-game-poe1 .realm-badge {
-  color: #9fd2ff;
-  border-color: rgba(143, 214, 255, 0.4);
-  background: transparent;
-}
-
-.ptb-game-poe1 .league-badge {
-  color: #c9a3e8;
-  border-color: rgba(201, 163, 232, 0.4);
-  background: transparent;
-}
-
-.ptb-game-poe1 .filter-chip {
-  color: #e8cd92;
-  border-color: rgba(255, 214, 128, 0.35);
-  background: rgba(255, 214, 128, 0.08);
-}
-
-.ptb-game-poe1 .button-primary {
-  color: #ffe9b0;
-  border-color: rgba(255, 214, 128, 0.55);
-  background: #4a3814;
-}
-
-.ptb-game-poe1 .button-danger {
-  color: #f0b3b3;
-  border-color: rgba(220, 150, 150, 0.5);
-  background: #2a2212;
-}
-
-.ptb-game-poe1 :is(.button, .lang-btn, .lang-opt, .bookmark-pencil):hover,
-.ptb-game-poe1 .lang-opt.ptb-on { background: #352a16; }
-
-/* ── PoE 2: 차가운 철/은 다크 ── */
-html.ptb-game-poe2 {
-  color-scheme: dark;
-  color: #dce4e6;
-  background: #0c1014;
-}
-
-body.ptb-game-poe2 {
-  background: #0c1014;
-}
-
-body.ptb-game-poe2 .popup-header {
-  border-bottom-color: rgba(168, 204, 196, 0.16);
-  background: #10141a;
-}
-
-body.ptb-game-poe2 .popup-header h1 {
-  color: #e8eef0;
-}
-
-body.ptb-game-poe2 .dash-btn {
-  border-color: rgba(168, 204, 196, 0.5);
-  border-radius: 4px;
-  color: #d4f0ec;
-  background: #1a3336;
-}
-
-body.ptb-game-poe2 .dash-btn:hover {
-  background: #224246;
-}
-
-body.ptb-game-poe2 .lang-select {
-  border-color: rgba(168, 204, 196, 0.28);
-  border-radius: 4px;
-  color: #dce4e6;
-  background: #141a20;
-}
-
-body.ptb-game-poe2 .bookmark-game-title {
-  color: #8b9694;
-}
-
-body.ptb-game-poe2 .empty-state {
-  color: #8b9694;
-}
-
-body.ptb-game-poe2 .bookmark-card {
-  border-color: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  background: #141a20;
-}
-
-body.ptb-game-poe2 .bookmark-icon {
-  border-color: rgba(168, 204, 196, 0.22);
-  border-radius: 5px;
-  color: #b7c8c4;
-  background: #0a0d11;
-}
-
-body.ptb-game-poe2 .bookmark-title {
-  color: #eef3f4;
-}
-
-body.ptb-game-poe2 .bookmark-low {
-  color: #9fd4c8;
-}
-
-body.ptb-game-poe2 .bookmark-pencil {
-  color: #b7c8c4;
-}
-
-body.ptb-game-poe2 .bookmark-pencil:hover {
-  background: #1c2a30;
-  color: #dce8e6;
-}
-
-body.ptb-game-poe2 .bookmark-title-input {
-  border-color: rgba(168, 204, 196, 0.55);
-  color: #eef3f4;
-  background: #0c1014;
-}
-
-body.ptb-game-poe2 .realm-badge {
-  border-color: rgba(143, 198, 214, 0.4);
-  color: #9fd4e4;
-  background: rgba(143, 198, 214, 0.1);
-}
-
-body.ptb-game-poe2 .league-badge {
-  border-color: rgba(176, 168, 214, 0.4);
-  color: #c2b8e6;
-  background: rgba(176, 168, 214, 0.1);
-}
-
-body.ptb-game-poe2 .filter-chip {
-  border-color: rgba(168, 204, 196, 0.28);
-  color: #c5ddd6;
-  background: rgba(168, 204, 196, 0.08);
-}
-
-body.ptb-game-poe2 .button {
-  border-color: rgba(255, 255, 255, 0.14);
-  border-radius: 4px;
-  color: #e4ecea;
-  background: #1a232c;
-}
-
-body.ptb-game-poe2 .button:hover {
-  background: #243038;
-}
-
-body.ptb-game-poe2 .button-primary {
-  border-color: rgba(168, 204, 196, 0.5);
-  color: #d4f0ec;
-  background: #1a3336;
-}
-
-body.ptb-game-poe2 .button-primary:hover {
-  background: #224246;
-}
-
-body.ptb-game-poe2 .button-danger {
-  border-color: rgba(220, 150, 150, 0.45);
-  color: #f0b3b3;
-  background: #2a1818;
-}
-
-body.ptb-game-poe2 .button-danger:hover {
-  background: #3a2020;
 }
