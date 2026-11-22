@@ -16,6 +16,8 @@ Nothing is uploaded to us. There is no account, no analytics, and no advertising
 
 ## Network requests
 
+When you save a bookmark, the extension can infer its title color from listings the trade page has already loaded. It keeps rarities and matching search and result IDs temporarily in tab memory. Saving uses this local data and sends no additional trade search or listing request.
+
 The extension requests the league list for the selected game from the official Korean trade site. It caches the response locally for one hour and can reuse the last list if a refresh fails.
 
 The extension reads the official trade site in your browser (Korea, global Path of Exile, and Taiwan). It fetches currency exchange rates from [poe.ninja](https://poe.ninja/) so listings can be converted. Those requests do not include your bookmarks.

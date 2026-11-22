@@ -76,6 +76,21 @@ PTB.rates = (function () {
     return (a * from) / to;
   }
 
+  function lowestListing(prices, bundle) {
+    if (!prices.length) return null;
+    const currency = prices[0].currency;
+    let best = prices[0], minimum = best.amount;
+    for (const price of prices.slice(1)) {
+      const value = price.currency === currency ? price.amount : convert(bundle, price.amount, price.currency, currency);
+      if (value == null || !Number.isFinite(value)) return null;
+      if (value < minimum) {
+        best = price;
+        minimum = value;
+      }
+    }
+    return best;
+  }
+
   function localeTag() {
     try {
       const lang = PTB.i18n && PTB.i18n.getLang && PTB.i18n.getLang();
@@ -106,16 +121,30 @@ PTB.rates = (function () {
     });
   }
 
-  function resolveId(bundle, raw) {
+  const localCurrencyIds = new Map();
+  function resolveId(bundle, raw, game = bundle?.game) {
     const s = String(raw || "")
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
     if (!s) return null;
     const cls = s.match(/currency-([a-z0-9-]+)/);
-    if (cls) return resolveId(bundle, cls[1]);
+    if (cls) return resolveId(bundle, cls[1], game);
     if (ALIAS[s]) return ALIAS[s];
     if (bundle && bundle.values && bundle.values[s] > 0) return s;
+    const pack = PTB.currencyNames?.[game];
+    if (pack) {
+      if (!localCurrencyIds.has(game)) {
+        const ids = new Map();
+        for (const [id, names] of Object.entries(pack)) {
+          ids.set(id, id);
+          for (const name of Object.values(names)) ids.set(name.toLowerCase(), id);
+        }
+        localCurrencyIds.set(game, ids);
+      }
+      const id = localCurrencyIds.get(game).get(s);
+      if (id) return id;
+    }
     const items = (bundle && bundle.items) || [];
     for (let i = 0; i < items.length; i += 1) {
       const it = items[i];
@@ -271,6 +300,7 @@ PTB.rates = (function () {
     getBase: getBase,
     setBase: setBase,
     convert: convert,
+    lowestListing,
     format3: format3,
     resolveId: resolveId,
     itemName: itemName,

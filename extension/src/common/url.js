@@ -84,3 +84,23 @@ PTB.buildTradeUrl = function ({ host, game, type, league, searchId }) {
   const leagueSeg = encodeURIComponent(PTB.decodePathPart(league));
   return `https://${host}/${path}/${leagueSeg}/${searchId}`;
 };
+
+PTB.unpackTradeQuery = async function (token) {
+  const binary = atob(decodeURIComponent(token).replace(/-/g, "+").replace(/_/g, "/"));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const reader = stream.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > 1024 * 1024) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return JSON.parse(await new Blob(chunks).text());
+};

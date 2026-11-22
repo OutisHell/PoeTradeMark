@@ -111,10 +111,9 @@
       if (!sl) return "";
       const input =
         sl.querySelector("input.multiselect__input") || sl.querySelector("input");
-      const fromInput = cleanText(input?.value);
-      if (fromInput) return fromInput;
       const single = sl.querySelector(".multiselect__single");
-      return cleanText(single?.textContent);
+      return cleanText(single?.textContent) || cleanText(input?.defaultValue) ||
+        (input && !sl.querySelector(".multiselect--active") ? cleanText(input.value) : "");
     } catch (_error) {
       return "";
     }
@@ -124,13 +123,12 @@
   // 고급필터의 첫 드롭다운(.multiselect.filter-select)이 곧 "아이템 유형" 필터(언어 무관).
   // 선택값은 .multiselect__single 에 들어가고, 미선택(=모두/Any)이면 그 요소가 없어 "" 반환.
   const readItemType = () => {
-    try {
-      const ms = document.querySelector(".search-advanced .multiselect.filter-select");
-      const single = ms && ms.querySelector(".multiselect__single");
-      return cleanText(single && single.textContent);
-    } catch (_error) {
-      return "";
-    }
+    const control = document.querySelector(".search-advanced [data-id='category'], .search-advanced [data-filter='category']") ||
+      document.querySelector(".search-advanced .multiselect.filter-select");
+    const native = control?.matches("select") ? control : control?.querySelector("select");
+    const selected = control?.querySelector(".multiselect__single");
+    return { category: cleanText(native?.selectedOptions[0]?.textContent || selected?.textContent),
+      categoryId: native?.value || selected?.dataset.value || "" };
   };
 
   // 적용된 필터들(스탯 + 그 외)을 사람이 읽는 문자열로. 라이브 확인:
@@ -145,11 +143,28 @@
         return cleanText(clone.textContent);
       };
       const out = [];
+      const labels = {};
+      const statNames = [];
+      let rarity;
       const filters = document.querySelectorAll(".search-advanced .filter");
       for (const f of filters) {
         const titleEl = f.querySelector(".filter-title");
         const name = cleanLabel(titleEl);
-        if (!name || name.charAt(0) === "+") continue;
+        if (!name || f.matches(".disabled, [aria-disabled='true']")) continue;
+        const key = f.dataset.id || f.dataset.filter;
+        if (key === "status" || key === "trade_status" || name === message("profileStatus", "Trade mode") ||
+            name === "거래 방식" || name === "Trade mode") continue;
+        const native = f.querySelector("select");
+        const single = f.querySelector(".multiselect__single");
+        const optionId = native?.value || single?.dataset.value;
+        if (optionId && optionId !== "any" && PTB.tradeRegion.statuses.includes(optionId)) continue;
+        const selectedRarity = PTB.tradeFormRarity(key, name, optionId,
+          cleanText(native?.selectedOptions[0]?.textContent || single?.textContent));
+        if (selectedRarity !== undefined) {
+          rarity = selectedRarity || (f.querySelector(".modified") ? "unclassified" : undefined);
+          continue;
+        }
+        if (key) labels[key] = name;
         const vals = [];
         f.querySelectorAll(".multiselect.modified .multiselect__single").forEach((s) => {
           const v = cleanText(s.textContent);
@@ -161,32 +176,52 @@
         });
         let label = "";
         if (titleEl.querySelector(".mutate-type")) {
+          statNames.push(name);
           label = vals.length ? name + ": " + vals.join(", ") : name; // 스탯 모드 = 모드 텍스트(+값)
         } else if (vals.length) {
           label = name + ": " + vals.join(", ");
         }
         if (label && !out.includes(label)) out.push(label);
       }
-      return out;
+      return { filters: out, labels, statNames, rarity };
     } catch (_error) {
-      return [];
+      return { filters: [], labels: {}, statNames: [] };
     }
   };
 
-  const captureResultDetails = () => {
+  function currentListingSample(info) {
+    if (info.type !== "search") return null;
+    const resultList = document.querySelector(".resultset, .search-results, .results") || document;
+    const ids = [...new Set(Array.from(resultList.querySelectorAll(".row[data-id]"), row => row.dataset.id).filter(Boolean))].slice(0, 600);
+    if (!ids.length) return null;
+    const bridge = document.createElement("template");
+    bridge.dataset.request = JSON.stringify({ ids, query: info.searchId, league: info.league, game: info.game === "poe2" ? "trade2" : "trade" });
+    document.documentElement.appendChild(bridge);
     try {
-      const row = queryOne(document, RESULT_ROW_SELECTORS);
-      const scope = row || document;
-      const icon = queryOne(scope, ICON_SELECTORS);
-      const iconUrl = icon?.getAttribute("src") || null;
-      // 제목: 검색창 입력값 → 아이템 유형(모두 제외) → "제목 없음"
-      const title =
-        readSearchTitle() || readItemType() || message("noTitle", "제목 없음");
-      const filters = captureFilters();
-      return { title, iconUrl, filters };
-    } catch (_error) {
-      return { title: message("noTitle", "제목 없음"), iconUrl: null, filters: [] };
+      bridge.dispatchEvent(new Event("ptb-read-listing-sample", { bubbles: true }));
+      const sample = JSON.parse(bridge.dataset.sample || "null");
+      return Array.isArray(sample?.rows) && sample.rows.length === ids.length ? sample : null;
+    } catch {
+      return null;
+    } finally { bridge.remove(); }
+  }
+
+  const captureResultDetails = async (info) => {
+    const sample = currentListingSample(info);
+    const row = queryOne(document, RESULT_ROW_SELECTORS);
+    const iconUrl = row ? queryOne(row, ICON_SELECTORS)?.src || null : null;
+    const form = { title: readSearchTitle(), ...readItemType(), ...captureFilters() };
+    let query = null;
+    if (info.type === "search" && info.searchId.startsWith("H4sI")) {
+      try { query = await PTB.unpackTradeQuery(info.searchId); } catch { /* Read the form for unsupported tokens. */ }
     }
+    if (!query && info.type === "search" && form.title) {
+      const named = await chrome.runtime.sendMessage({ cmd: "ptb-named-selection", title: form.title }).catch(() => false);
+      if (named === true) form.named = true;
+    }
+    const categoryLabels = PTB.tradeCategoryLabels[info.game]?.[info.realm];
+    const matchingSample = await PTB.matchListingSample(sample, info.searchId, query);
+    return { ...PTB.bookmarkSummary(query, form, categoryLabels, matchingSample), iconUrl };
   };
 
   const setBookmarkFace = (button, saved) => {
@@ -246,12 +281,13 @@
         button.classList.add(BUSY_CLASS);
       }
 
-      const { title, iconUrl, filters } = captureResultDetails();
-      const lowPrice = captureLowestPrice();
+      const lowPrice = observedMinimum(info, readListingPrices());
+      const { title, itemName, iconUrl, filters, rarity } = await captureResultDetails(info);
       await storage.add({
         ...info,
         title,
-        itemName: title,
+        itemName,
+        ...(rarity ? { rarity } : {}),
         iconUrl,
         filters,
         query: null,
@@ -361,8 +397,8 @@
       }
       if (hrefChanged && state.sidebarOpen) renderSidebarList();
       if (hrefChanged) {
+        lastObservation = "";
         fx.league = "";
-        fx.byId.clear();
         refreshListingFx().catch(() => {});
       }
     } catch (_error) {
@@ -615,43 +651,6 @@
     return PTB.rates && PTB.rates.format3 ? PTB.rates.format3(a) : String(Math.round(a * 1000) / 1000);
   };
 
-  const beginTitleEdit = (titleEl, bookmark) => {
-    if (titleEl.querySelector("input")) return;
-    const orig = bookmark.title || "";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = "ptb-sb-title-input";
-    input.value = orig;
-    let done = false;
-    const end = async (save) => {
-      if (done) return;
-      done = true;
-      const next = input.value.trim();
-      if (save && next && next !== orig) {
-        try {
-          await PTB.storage.update(bookmark.id, { title: next });
-        } catch (_e) {}
-        return;
-      }
-      titleEl.textContent = orig || bookmark.searchId || "";
-    };
-    input.addEventListener("keydown", (e) => {
-      e.stopPropagation();
-      if (e.key === "Enter") {
-        e.preventDefault();
-        end(true);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        end(false);
-      }
-    });
-    input.addEventListener("blur", () => end(true));
-    titleEl.textContent = "";
-    titleEl.appendChild(input);
-    input.focus();
-    input.select();
-  };
-
   const buildSidebarRow = (bookmark) => {
     const row = sbEl("div", "ptb-sb-row");
 
@@ -673,9 +672,10 @@
     pencil.title = message("rename", "Rename");
     pencil.appendChild(lucideEl("pencil"));
     const titleEl = sbEl("div", "ptb-sb-title", bookmark.title || bookmark.searchId || "");
+    PTB.colorBookmarkTitle(titleEl, bookmark);
     pencil.addEventListener("click", (e) => {
       e.stopPropagation();
-      beginTitleEdit(titleEl, bookmark);
+      PTB.editBookmarkTitle(titleEl, bookmark, "ptb-sb-title-input", renderSidebarList);
     });
     nameRow.appendChild(pencil);
     nameRow.appendChild(titleEl);
@@ -688,23 +688,6 @@
     if (bookmark.league) tagRow.appendChild(sbEl("span", "ptb-sb-league", bookmark.league));
     main.appendChild(tagRow);
     main.appendChild(nameRow);
-    if (Array.isArray(bookmark.filters) && bookmark.filters.length) {
-      const fwrap = sbEl("div", "ptb-sb-filters");
-      for (const mod of bookmark.filters) fwrap.appendChild(sbEl("span", "ptb-sb-chip", mod));
-      if (bookmark.filters.length >= 3) {
-        // 필터 3개 이상이면 접어두고 토글로 펼침
-        fwrap.classList.add("ptb-collapsed");
-        const filterLabel = message("filterN", "필터 {n}개 ▾").replace("{n}", bookmark.filters.length);
-        const fToggle = sbEl("button", "ptb-sb-fbtn", filterLabel);
-        fToggle.type = "button";
-        fToggle.addEventListener("click", () => {
-          const collapsed = fwrap.classList.toggle("ptb-collapsed");
-          fToggle.textContent = collapsed ? filterLabel : message("collapse", "접기 ▴");
-        });
-        main.appendChild(fToggle);
-      }
-      main.appendChild(fwrap);
-    }
 
     const actions = sbEl("div", "ptb-sb-actions");
     const jumpBtn = sbEl("a", "ptb-sb-btn ptb-sb-jump ptb-sb-ico");
@@ -714,17 +697,6 @@
       const buildTradeUrl = globalThis.PTB && PTB.buildTradeUrl;
       if (typeof buildTradeUrl === "function") jumpBtn.href = buildTradeUrl(bookmark);
     } catch (_e) {}
-    jumpBtn.addEventListener("click", () => {
-      try {
-        chrome.storage.local.set(
-          { ptbPendingLow: { id: bookmark.id, searchId: bookmark.searchId, at: Date.now() } },
-          () => {
-            const info = parseCurrentUrl();
-            if (info && info.searchId === bookmark.searchId) maybeSyncLowPrice();
-          }
-        );
-      } catch (_e) {}
-    });
     const copyBtn = sbEl("button", "ptb-sb-btn ptb-sb-ico");
     copyBtn.type = "button";
     copyBtn.title = message("copyUrl", "Copy");
@@ -766,6 +738,7 @@
     row.appendChild(grip);
     row.appendChild(thumb);
     row.appendChild(main);
+    PTB.appendBookmarkFilters(row, bookmark.filters, "ptb-sb-filters", "ptb-sb-chip");
     row.appendChild(actions);
     return row;
   };
@@ -787,20 +760,21 @@
       const game = currentGame();
       const view = await PTB.storage.listView(game);
       if (version !== sidebarListVersion || game !== currentGame()) return;
-      PTB.renderCollectionControls(state.sidebar.querySelector(".ptb-collection-controls"), game, view, renderSidebarList);
+      const editButton = PTB.renderCollectionControls(state.sidebar.querySelector(".ptb-collection-controls"), game, view, renderSidebarList);
       if (list.dataset.ptbGame === game && list.dataset.ptbCollection === view.collectionId &&
-          list.querySelector(".ptb-bm-dragging, .ptb-bm-form")) return;
+          list.querySelector(".ptb-bm-dragging, .ptb-bm-form, .ptb-title-editor")) return;
       list.dataset.ptbGame = game || "";
       list.dataset.ptbCollection = view.collectionId || "";
       const q = String(fx.bmQuery || "").trim();
-      if (q) view.bookmarks = view.bookmarks.filter((bookmark) => bookmarkMatches(bookmark, q));
       PTB.renderBookmarkGroups(list, view, {
         game,
+        editButton,
         buildRow: buildSidebarRow,
         gripSelector: ".ptb-sb-rategrip",
         refresh: renderSidebarList,
         canReorder: !q,
         searching: Boolean(q),
+        filterBookmark: q ? bookmark => bookmarkMatches(bookmark, q) : null,
       });
     } catch (_error) {
       // best-effort
@@ -1060,7 +1034,6 @@
     league: "",
     timer: 0,
     observer: null,
-    byId: new Map(),
     sets: [],
     focus: null,
     dragId: "",
@@ -1212,15 +1185,21 @@
         const cm = cls.match(/currency-([a-z0-9-]+)/i);
         if (cm) raw = cm[1];
       }
-      const currency = PTB.rates.resolveId(fx.bundle, raw);
+      const currency = PTB.rates.resolveId(fx.bundle, raw, fx.game);
       const text = clone.textContent || "";
-      const m = text.replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
-      const amount = m ? Number(m[1]) : NaN;
+      const m = text.split("≈", 1)[0].match(/\d+(?:[.,\u00a0\u202f]\d+)*/);
+      const amount = m ? Number(m[0].replace(/[\u00a0\u202f]/g, "").split(priceGroup).join("").replace(priceDecimal, ".")) : NaN;
       return { amount, currency };
     } catch (_e) {
       return { amount: NaN, currency: null };
     }
   };
+
+  const tradeRegion = PTB.hostToRealm(location.host);
+  const priceLocale = { kr: "ko", br: "pt-BR", jp: "ja", tw: "zh-TW" }[tradeRegion] || tradeRegion;
+  const priceParts = new Intl.NumberFormat(priceLocale).formatToParts(1234.5);
+  const priceGroup = priceParts.find(part => part.type === "group")?.value || ",";
+  const priceDecimal = priceParts.find(part => part.type === "decimal")?.value || ".";
 
   const listingTargets = () => {
     const rows = document.querySelectorAll(
@@ -1240,57 +1219,45 @@
     return out;
   };
 
-  const captureLowestPrice = () => {
-    let best = null;
-    let bestDiv = Infinity;
-    const primary = (fx.bundle && fx.bundle.primary) || "divine";
-    const targets = listingTargets();
-    for (let i = 0; i < targets.length; i += 1) {
-      const t = targets[i];
-      const fromApi = t.id && fx.byId.get(String(t.id));
-      let parsed;
-      if (fromApi && Number.isFinite(Number(fromApi.amount)) && fromApi.currency) {
-        parsed = {
-          amount: Number(fromApi.amount),
-          currency: PTB.rates ? PTB.rates.resolveId(fx.bundle, fromApi.currency) || fromApi.currency : fromApi.currency,
-        };
-      } else {
-        parsed = parseListingPrice(t.box);
-      }
-      if (!Number.isFinite(parsed.amount) || !parsed.currency) continue;
-      let div = parsed.amount;
-      if (fx.bundle && PTB.rates) {
-        const conv = PTB.rates.convert(fx.bundle, parsed.amount, parsed.currency, primary);
-        if (conv != null) div = conv;
-      }
-      if (div < bestDiv) {
-        bestDiv = div;
-        best = { amount: parsed.amount, currency: parsed.currency, at: Date.now() };
-      }
+  // A reused result row can still belong to the previous URL while the trade app loads.
+  const observedRows = new WeakMap();
+  function readListingPrices() {
+    const listings = [];
+    for (const target of listingTargets()) {
+      const previous = observedRows.get(target.row);
+      if (previous?.id === target.id && previous.search !== state.href) continue;
+      observedRows.set(target.row, { id: target.id, search: state.href });
+      listings.push({ box: target.box, price: parseListingPrice(target.box) });
     }
-    return best;
-  };
+    return listings;
+  }
 
-  const maybeSyncLowPrice = () => {
-    try {
-      chrome.storage.local.get("ptbPendingLow", (r) => {
-        const pending = r && r.ptbPendingLow;
-        if (!pending || !pending.id || !pending.searchId) return;
-        const info = parseCurrentUrl();
-        if (!info || info.searchId !== pending.searchId) return;
-        const low = captureLowestPrice();
-        if (!low) return;
-        PTB.storage.update(pending.id, { lowPrice: low }).then(() => {
-          chrome.storage.local.remove("ptbPendingLow");
-        }).catch(() => {});
-      });
-    } catch (_e) {}
-  };
+  function observedMinimum(info, listings) {
+    const prices = listings.map(listing => listing.price).filter(price => price.amount > 0 && Number.isFinite(price.amount));
+    if (prices.some(price => !price.currency)) return null;
+    const bundle = fx.bundle?.game === info.game && fx.bundle.league === info.league ? fx.bundle : null;
+    const best = PTB.rates.lowestListing(prices, bundle);
+    return best && { ...best, at: Date.now() };
+  }
 
+  let lastObservation = "";
+  function syncSearchPrice(listings) {
+    const info = parseCurrentUrl();
+    if (!info || location.href !== state.href) return;
+    const price = observedMinimum(info, listings);
+    if (!price) return;
+    const key = JSON.stringify([state.href, price.amount, price.currency]);
+    if (key === lastObservation) return;
+    lastObservation = key;
+    PTB.storage.recordSearchPrice(info, price).catch(() => {
+      if (lastObservation === key) lastObservation = "";
+    });
+  }
   const buildLowPriceRow = (bookmark) => {
     const wrap = sbEl("div", "ptb-sb-low");
     const lp = bookmark.lowPrice;
     if (lp && lp.amount != null && lp.currency) {
+      wrap.title = PTB.observedPriceLabel(lp);
       appendCurrIcon(wrap, lp.currency);
       wrap.appendChild(document.createTextNode(" " + formatListedAmount(lp.amount)));
     }
@@ -1626,7 +1593,9 @@
   };
 
   const paintListingFx = () => {
-    maybeSyncLowPrice();
+    if (location.href !== state.href) return;
+    const listings = readListingPrices();
+    syncSearchPrice(listings);
     const game = PTB.gameFromUrl ? PTB.gameFromUrl(globalThis.location?.href || "") : null;
     if ((game !== "poe1" && game !== "poe2") || !fx.bundle || !PTB.rates) {
       document.querySelectorAll("." + FX_CLASS).forEach((n) => n.remove());
@@ -1635,18 +1604,7 @@
     const base = PTB.rates.clampBase ? PTB.rates.clampBase(fx.base) : fx.base || PTB.rates.DEFAULT_BASE;
     const baseName = currencyLabel(base);
     const baseIcon = currencyIcon(base);
-    const targets = listingTargets();
-    for (const t of targets) {
-      const fromApi = t.id && fx.byId.get(String(t.id));
-      let parsed;
-      if (fromApi) {
-        parsed = {
-          amount: Number(fromApi.amount),
-          currency: PTB.rates.resolveId(fx.bundle, fromApi.currency) || fromApi.currency,
-        };
-      } else {
-        parsed = parseListingPrice(t.box);
-      }
+    for (const { box, price: parsed } of listings) {
       let amountText = "";
       if (
         Number.isFinite(parsed.amount) &&
@@ -1657,7 +1615,7 @@
         if (conv != null) amountText = PTB.rates.format3(conv);
       }
       const key = parsed.amount + "|" + parsed.currency + "|" + base + "|" + amountText;
-      let tag = t.box.querySelector("." + FX_CLASS);
+      let tag = box.querySelector("." + FX_CLASS);
       if (!amountText) {
         if (tag) tag.remove();
         continue;
@@ -1665,7 +1623,7 @@
       if (!tag) {
         tag = document.createElement("span");
         tag.className = FX_CLASS;
-        t.box.appendChild(tag);
+        box.appendChild(tag);
       }
       if (tag.dataset.ptbFx !== key) {
         tag.dataset.ptbFx = key;
@@ -1704,11 +1662,14 @@
         return;
       }
     });
-    fx.observer.observe(document.body, { childList: true, subtree: true });
+    fx.observer.observe(document.body, { childList: true, characterData: true, subtree: true,
+      attributes: true, attributeFilter: ["data-id", "title", "alt"] });
   };
 
+  let ratesRequest = 0;
   const refreshListingFx = async () => {
     if (!PTB.rates) return;
+    const request = ++ratesRequest;
     const game = currentGame();
     fx.game = game;
     if (game !== "poe1" && game !== "poe2") {
@@ -1717,6 +1678,9 @@
       return;
     }
     const league = currentLeague();
+    if (fx.bundle?.game !== game || fx.bundle?.league !== league) fx.bundle = null;
+    ensureFxObserver();
+    schedulePaintFx();
     try {
       fx.base = await PTB.rates.getBase(game);
     } catch (_e) {
@@ -1732,8 +1696,11 @@
     if (league) {
       fx.league = league;
       try {
-        fx.bundle = await PTB.rates.get(league, game);
+        const bundle = await PTB.rates.get(league, game);
+        if (request !== ratesRequest) return;
+        fx.bundle = bundle;
       } catch (_e) {
+        if (request !== ratesRequest) return;
         fx.bundle = null;
       }
     }
@@ -1743,7 +1710,6 @@
     } else {
       setFxStatus("");
     }
-    ensureFxObserver();
     paintListingFx();
     renderRateTable();
   };

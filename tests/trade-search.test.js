@@ -10,6 +10,15 @@ const original = "https://poe.kakaogames.com/trade/search/Covens/H4sIAAAAAAAACnW
 const unpack = (url) => JSON.parse(gunzipSync(Buffer.from(new URL(url).pathname.split("/").pop(), "base64url")));
 const dict = async (game, region) => JSON.parse(await readFile(require.resolve("../extension/src/assets/trade-names/" + game + "/" + region + ".json")));
 
+test("opaque search titles distinguish a localized unique name from a base type", async () => {
+  const href = "https://poe.kakaogames.com/trade/search/Covens/shortId";
+  for (const title of ["하이리의 노여움", "하이리의 노여움 성좌의 가죽 갑옷"]) {
+    assert.equal(await PTB.namedTradeSelection(href, title, dict), true);
+  }
+  assert.equal(await PTB.namedTradeSelection(href, "성좌의 가죽 갑옷", dict), false);
+  assert.equal(await PTB.namedTradeSelection(href, "하이리의 노여움 아무거나", dict), false);
+});
+
 test("the Allflame share URL transfers before the destination app consumes q", async () => {
   const source = new URL("https://www.pathofexile.com/trade/search/Allflame?q=%7B%22query%22%3A%7B%22status%22%3A%7B%22option%22%3A%22available%22%7D%2C%22name%22%3A%22Rigwald%27s%20Command%22%2C%22stats%22%3A%5B%7B%22type%22%3A%22and%22%2C%22filters%22%3A%5B%5D%7D%5D%2C%22filters%22%3A%7B%22trade_filters%22%3A%7B%22filters%22%3A%7B%22indexed%22%3A%7B%22option%22%3A%223days%22%7D%7D%7D%2C%22misc_filters%22%3A%7B%22filters%22%3A%7B%22ilvl%22%3A%7B%22min%22%3A84%7D%7D%7D%7D%7D%2C%22sort%22%3A%7B%22price%22%3A%22asc%22%7D%7D");
   source.search += "&other=a%20b";

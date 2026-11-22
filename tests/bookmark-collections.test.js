@@ -19,6 +19,21 @@ beforeEach(() => {
   };
 });
 
+test("a revisit replaces prices in both directions across matching collections only", async () => {
+  const search = { game: "poe1", host: "www.pathofexile.com", type: "search", league: "Standard", searchId: "abc" };
+  await PTB.storage.add({ ...search, title: "First" });
+  await PTB.collections.add("poe1", "Build");
+  await PTB.storage.add({ ...search, title: "Copy" });
+  await PTB.storage.add({ ...search, league: "Hardcore", title: "Other" });
+  for (const [at, amount] of [[10, 3], [11, 7], [12, 2], [9, 1]]) {
+    await PTB.storage.recordSearchPrice(search, { amount, currency: "divine", at });
+  }
+  const { bookmarks } = await chrome.storage.local.get(["bookmarks"]);
+  for (const m of bookmarks.filter(m => m.searchId === "abc")) {
+    assert.equal(m.lowPrice?.amount, m.league === "Standard" ? 2 : undefined);
+  }
+});
+
 test("selects new collections and displays each game's active collection away from trade", async () => {
   const list = await PTB.collections.add("poe1", "  Maps  ");
   assert.equal(list.name, "Maps");

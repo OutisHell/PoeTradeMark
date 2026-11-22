@@ -145,9 +145,9 @@
     document.documentElement.classList.toggle("ptb-game-poe1", game === "poe1");
     document.documentElement.classList.toggle("ptb-game-poe2", game === "poe2");
     document.body.classList.toggle("ptb-game-poe2", game === "poe2");
-    PTB.renderCollectionControls(document.querySelector(".ptb-collection-controls"), game, view, refresh);
+    const editButton = PTB.renderCollectionControls(document.querySelector(".ptb-collection-controls"), game, view, refresh);
     const scope = [game, view.collectionId].join(":");
-    if (listEl.dataset.ptbScope === scope && listEl.querySelector(".ptb-bm-dragging, .ptb-bm-form")) return;
+    if (listEl.dataset.ptbScope === scope && listEl.querySelector(".ptb-bm-dragging, .ptb-bm-form, .ptb-title-editor")) return;
     listEl.dataset.ptbScope = scope;
 
     if (!game && !view.bookmarks.length) {
@@ -157,6 +157,7 @@
 
     PTB.renderBookmarkGroups(listEl, view, {
       game,
+      editButton,
       buildRow: createBookmarkCard,
       gripSelector: ".ptb-bm-grip",
       refresh: () => refresh().catch(console.error),
@@ -171,39 +172,9 @@
     const content = makeElement("div", "bookmark-content");
     const nameRow = makeElement("div", "bookmark-namerow");
     const heading = makeElement("h2", "bookmark-title", bookmark.title || bookmark.searchId || bookmark.league || "");
+    PTB.colorBookmarkTitle(heading, bookmark);
     const pencil = iconButton("bookmark-pencil", "pencil", message("rename", "Rename"), () => {
-      if (heading.querySelector("input")) return;
-      const orig = bookmark.title || "";
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "bookmark-title-input";
-      input.value = orig;
-      let done = false;
-      const end = async (save) => {
-        if (done) return;
-        done = true;
-        const next = input.value.trim();
-        if (save && next && next !== orig) {
-          await PTB.storage.update(bookmark.id, { title: next });
-          await refresh();
-          return;
-        }
-        heading.textContent = orig || bookmark.searchId || bookmark.league || "";
-      };
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          end(true);
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          end(false);
-        }
-      });
-      input.addEventListener("blur", () => end(true));
-      heading.textContent = "";
-      heading.appendChild(input);
-      input.focus();
-      input.select();
+      PTB.editBookmarkTitle(heading, bookmark, "bookmark-title-input", refresh);
     });
     const grip = makeElement("span", "ptb-bm-grip", "⋮⋮");
     grip.title = message("folderDrag", "Drag bookmark");
@@ -216,7 +187,9 @@
       const shown = Number.isFinite(amt) && Math.abs(amt - Math.round(amt)) < 1e-9
         ? String(Math.round(amt))
         : String(amt);
-      meta.appendChild(makeElement("span", "bookmark-low", shown + " " + bookmark.lowPrice.currency));
+      const price = makeElement("span", "bookmark-low", shown + " " + bookmark.lowPrice.currency);
+      price.title = PTB.observedPriceLabel(bookmark.lowPrice);
+      meta.appendChild(price);
     }
     meta.appendChild(makeElement("span", "realm-badge", getRealmLabel(bookmark)));
     if (bookmark.league) {
@@ -225,14 +198,6 @@
 
     content.appendChild(meta);
     content.appendChild(nameRow);
-
-    if (Array.isArray(bookmark.filters) && bookmark.filters.length) {
-      const filtersWrap = makeElement("div", "bookmark-filters");
-      for (const mod of bookmark.filters) {
-        filtersWrap.appendChild(makeElement("span", "filter-chip", mod));
-      }
-      content.appendChild(filtersWrap);
-    }
 
     const actions = makeElement("div", "bookmark-actions");
     const navigate = (url, e) => {
@@ -249,6 +214,7 @@
 
     card.appendChild(createIcon(bookmark));
     card.appendChild(content);
+    PTB.appendBookmarkFilters(card, bookmark.filters, "bookmark-filters", "filter-chip");
     card.appendChild(actions);
     return card;
   }

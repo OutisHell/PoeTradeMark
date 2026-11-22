@@ -17,6 +17,7 @@ function extension() {
   };
   let handler;
   const runtime = {
+    getURL: (path) => path,
     onMessage: { addListener(fn) { handler = fn; } },
     sendMessage(msg) {
       return new Promise((resolve) => {
@@ -25,7 +26,10 @@ function extension() {
     },
   };
   function context() {
-    return vm.createContext({ chrome: { storage: { local }, runtime }, crypto: { randomUUID }, URL });
+    return vm.createContext({ chrome: { storage: { local }, runtime }, crypto: { randomUUID }, URL,
+      Blob, Response, CompressionStream, DecompressionStream, atob, btoa,
+      fetch: async path => ({ ok: true, json: async () => JSON.parse(readFileSync(join(__dirname, "../extension", path), "utf8")) }),
+    });
   }
   function load(ctx, path) {
     vm.runInContext(readFileSync(join(__dirname, "../extension/src", path), "utf8"), ctx);
@@ -71,6 +75,67 @@ test("folders stay in their game and reject cross-game moves", async () => {
   assert.equal((await ptb.folders.list("poe2"))[0].name, "Maps");
   await assert.rejects(ptb.storage.move("legacy", folder.id));
   assert.equal((await ptb.storage.list("poe1"))[0].folderId, undefined);
+});
+
+test("bulk groups include members from multiple groups and validate the entire selection before moving", async () => {
+  const [ptb] = extension();
+  const added = await ptb.storage.add({game:"poe1", title:"A"});
+  const source = await ptb.folders.group("legacy", null, "Source");
+  const ids = ["legacy", added.id];
+  const edit = (selected, op) => ptb.storage.editSelected("poe1", "default", selected, op);
+  await assert.rejects(edit([...ids, "two"], {kind:"group", name:"Wrong game"}));
+  await edit(ids, {kind:"group", name:"Together"});
+  let view = await ptb.storage.listView("poe1");
+  const target = view.folders.find(f => f.name === "Together");
+  assert.equal(view.folders.length, 2);
+  assert.ok(view.bookmarks.every(b => b.folderId === target.id));
+  assert.equal(view.recentGroupId, target.id);
+  await edit(ids, {kind:"move", folderId:source.id});
+  assert.ok((await ptb.storage.list("poe1")).every(b => b.folderId === source.id));
+  await edit(ids, {kind:"move", folderId:null});
+  view = await ptb.storage.listView("poe1");
+  assert.ok(view.bookmarks.every(b => !b.folderId && view.rootOrder.includes(b.id)));
+  await ptb.collections.add("poe1", "Other");
+  await assert.rejects(edit(ids, {kind:"move", folderId:target.id}));
+});
+
+test("bulk location edits change only requested URL fields and preserve the recorded minimum", async () => {
+  const [ptb] = extension();
+  const lowPrice = { amount: 7, currency: "chaos", at: 123 };
+  const base = {game:"poe2", league:"Standard", host:"www.pathofexile.com", realm:"en", searchId:"abc", lowPrice};
+  const marks = [await ptb.storage.add({...base, type:"search", title:"A"}), await ptb.storage.add({...base, type:"exchange", title:"B"})];
+  const ids = marks.map(b => b.id);
+  for (const [patch, host, league] of [
+    [{region:"kr"}, "poe.kakaogames.com", "Standard"],
+    [{league:"Other League"}, "poe.kakaogames.com", "Other League"],
+    [{region:"de", league:"Standard"}, "de.pathofexile.com", "Standard"],
+  ]) {
+    await ptb.storage.editSelected("poe2", "default", ids, {kind:"location", ...patch});
+    for (const b of (await ptb.storage.list("poe2")).filter(b => ids.includes(b.id))) {
+      assert.equal(ptb.buildTradeUrl(b), "https://" + host + "/trade2/" + b.type + "/poe2/" + encodeURIComponent(league) + "/abc");
+      assert.equal(b.realm, ptb.hostToRealm(host));
+      assert.deepEqual({...b.lowPrice}, lowPrice);
+    }
+  }
+  await assert.rejects(ptb.storage.editSelected("poe2", "default", ids, {kind:"location", league:"../bad"}));
+});
+
+test("changing trade site translates compressed searches and rolls back a batch containing an unknown name", async () => {
+  const [ptb] = extension();
+  const encode = name => require("node:zlib").gzipSync(JSON.stringify({name, stats:[]})).toString("base64url");
+  const record = {game:"poe1", host:"www.pathofexile.com", realm:"en", type:"search", league:"Standard"};
+  const unknown = await ptb.storage.add({...record, searchId:encode("Unknown catalog entry"), title:"Other"});
+  const known = await ptb.storage.add({...record, searchId:encode("Rigwald's Command"), title:"My search"});
+  const change = ids => ptb.storage.editSelected("poe1", "default", ids, {kind:"location", region:"kr"});
+  await assert.rejects(change([known.id, unknown.id]));
+  const findKnown = async () => (await ptb.storage.list("poe1")).find(b => b.id === known.id);
+  assert.equal((await findKnown()).host, record.host);
+  assert.equal((await findKnown()).searchId, known.searchId);
+  await change([known.id]);
+  const moved = await findKnown();
+  assert.equal(moved.host, "poe.kakaogames.com");
+  assert.equal(moved.title, "My search");
+  assert.equal((await ptb.unpackTradeQuery(moved.searchId)).name, "리그월드의 명령");
 });
 
 test("folder state survives reload and deletion returns its bookmarks to unfiled", async () => {

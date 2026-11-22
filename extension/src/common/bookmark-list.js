@@ -1,8 +1,117 @@
 // 팝업과 거래소 사이드바가 같은 즐겨찾기 그룹 UI를 사용한다.
+PTB.colorBookmarkTitle = function (title, bookmark) {
+  const color = PTB.isTitleColor(bookmark.titleColor) ? bookmark.titleColor :
+    Object.hasOwn(PTB.bookmarkRarityColors, bookmark.rarity) ? PTB.bookmarkRarityColors[bookmark.rarity] : "";
+  title.classList.toggle("ptb-rarity-title", !!color);
+  title.style.color = color;
+};
+
+PTB.editBookmarkTitle = function (title, bookmark, inputClass, refresh) {
+  if (title.querySelector("input")) return;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = inputClass;
+  input.value = bookmark.title || "";
+  input.setAttribute("aria-label", PTB.i18n.t("rename"));
+  const color = document.createElement("select");
+  color.className = "ptb-title-swatch";
+  color.title = PTB.i18n.t("bookmarkTitleColor");
+  color.setAttribute("aria-label", color.title);
+  const initialColor = getComputedStyle(title).color;
+  color.style.backgroundColor = input.style.color = initialColor;
+  const names = PTB.i18n.t("rarityNames");
+  for (const [rarity, value] of Object.entries(PTB.bookmarkRarityColors)) {
+    const option = new Option(names[rarity], value);
+    option.style.color = value;
+    color.add(option);
+  }
+  color.selectedIndex = Array.from(color.options).findIndex(option => option.style.color === initialColor);
+  const initialValue = color.value;
+  color.addEventListener("change", () => {
+    color.style.backgroundColor = input.style.color = color.value;
+    input.focus();
+  });
+  const editor = document.createElement("span");
+  editor.className = "ptb-title-editor";
+  editor.append(input, color);
+  const originalLabel = title.textContent;
+  let finished = false;
+  async function finish(save) {
+    if (finished) return;
+    finished = true;
+    const patch = {};
+    const name = input.value.trim();
+    if (name && name !== bookmark.title) patch.title = name;
+    if (color.value && color.value !== initialValue) patch.titleColor = color.value;
+    try {
+      if (save && Object.keys(patch).length) await PTB.storage.update(bookmark.id, patch);
+    } catch (error) {
+      console.error(error);
+      finished = false;
+      input.focus();
+      input.setCustomValidity(PTB.i18n.t("folderSaveError"));
+      input.reportValidity();
+      input.setCustomValidity("");
+      return;
+    }
+    title.textContent = originalLabel;
+    await refresh();
+  }
+  editor.addEventListener("keydown", event => {
+    event.stopPropagation();
+    if (event.isComposing) return;
+    if (event.key === "Escape" || (event.key === "Enter" && event.target === input)) {
+      event.preventDefault();
+      finish(event.key === "Enter");
+    }
+  });
+  editor.addEventListener("focusout", event => {
+    if (!editor.contains(event.relatedTarget)) finish(true);
+  });
+  title.replaceChildren(editor);
+  input.focus();
+  input.select();
+};
+
+PTB.observedPriceLabel = function (price) {
+  const label = PTB.i18n.t("observedLowest", "Lowest observed listing price");
+  return price.at > 0 ? label + " · " + new Date(price.at).toLocaleString() : label;
+};
+
+PTB.appendBookmarkFilters = function (card, filters, listClass, chipClass) {
+  const labels = Array.isArray(filters) ? filters.filter(text => typeof text === "string" && text.trim()) : [];
+  if (!labels.length) return;
+  const section = document.createElement("div");
+  section.className = "ptb-bm-filter-row";
+  const list = document.createElement("div");
+  list.className = listClass;
+  const chips = labels.map(text => {
+    const chip = document.createElement("span");
+    chip.className = chipClass;
+    chip.textContent = text;
+    return chip;
+  });
+  list.append(...chips.slice(0, 2));
+  section.appendChild(list);
+  card.appendChild(section);
+  if (chips.length <= 2) return;
+  const details = document.createElement("details");
+  details.className = "ptb-bm-filter-details";
+  const toggle = document.createElement("summary");
+  toggle.textContent = PTB.i18n.t("filterMore", "{n} more filters").replace("{n}", chips.length - 2);
+  const more = document.createElement("div");
+  more.className = listClass;
+  more.append(...chips.slice(2));
+  details.append(toggle, more);
+  section.appendChild(details);
+};
+
 PTB.renderBookmarkGroups = function (list, view, options) {
   const { game, buildRow, refresh, gripSelector, canReorder, searching } = options;
-  const { bookmarks, folders } = view;
+  const { folders } = view;
+  const bookmarks = options.filterBookmark ? view.bookmarks.filter(options.filterBookmark) : view.bookmarks;
   if (!game) {
+    bookmarkSelections.delete(list);
     list.replaceChildren(...bookmarks.map(buildRow));
     return;
   }
@@ -15,6 +124,7 @@ PTB.renderBookmarkGroups = function (list, view, options) {
     return el;
   };
   if (!view.collectionId) {
+    bookmarkSelections.delete(list);
     list.replaceChildren(element("p", "ptb-bm-empty", t("collectionStart")));
     return;
   }
@@ -24,6 +134,7 @@ PTB.renderBookmarkGroups = function (list, view, options) {
     return el;
   };
   const status = element("div", "ptb-bm-status");
+  const batch = PTB.bookmarkBatch(list, game, view, refresh, options.editButton);
   status.setAttribute("role", "status");
   const menu = element("div", "ptb-bm-menu");
   menu.setAttribute("popover", "auto");
@@ -208,6 +319,7 @@ PTB.renderBookmarkGroups = function (list, view, options) {
 
   // 인접한 두 행의 가장자리와 실제 여백이 같은 삽입선을 공유한다.
   function addGaps(container, folderId) {
+    if (batch.editing) return;
     const rows = Array.from(container.children);
     if (!rows.length) return;
     for (let i = 0; i <= rows.length; i++) {
@@ -227,6 +339,16 @@ PTB.renderBookmarkGroups = function (list, view, options) {
   function makeBookmarkRow(bookmark, folderId) {
     const row = buildRow(bookmark);
     row.dataset.bmId = bookmark.id;
+    if (batch.editing) {
+      const box = batch.checkbox([bookmark.id], bookmark.title || bookmark.searchId);
+      const grip = row.querySelector(gripSelector);
+      if (grip) grip.replaceWith(box);
+      else row.prepend(box);
+      row.addEventListener("click", event => {
+        if (!event.target.closest("input, button, a, select, summary, details")) box.click();
+      });
+      return row;
+    }
     bindDrag(row, row.querySelector(gripSelector) || row, { id: bookmark.id, folderId, group: false }, true);
     row.addEventListener("contextmenu", (event) => {
       const actions = [];
@@ -283,10 +405,11 @@ PTB.renderBookmarkGroups = function (list, view, options) {
     toggle.setAttribute("aria-expanded", String(expanded));
     toggle.disabled = Boolean(searching);
     toggle.addEventListener("click", () => save(() => PTB.folders.update(folder.id, { collapsed: expanded })));
-    header.append(grip, toggle);
+    const members = searching && batch.editing ? view.bookmarks.filter(mark => mark.folderId === folder.id) : items;
+    header.append(batch.editing ? batch.checkbox(members.map(mark => mark.id), folder.name) : grip, toggle);
     section.appendChild(header);
-    bindDrag(header, grip, { id: folder.id, folderId: null, group: true });
-    header.addEventListener("contextmenu", (event) => openMenu(event, [
+    if (!batch.editing) bindDrag(header, grip, { id: folder.id, folderId: null, group: true });
+    if (!batch.editing) header.addEventListener("contextmenu", (event) => openMenu(event, [
       menuButton(t("rename", "Rename"), () => editName(toggle, folder.name, (name) => PTB.folders.update(folder.id, { name }))),
       ...collectionActions(folder.id),
       menuButton(t("groupUngroup", "Ungroup"), () => save(() => PTB.folders.remove(folder.id))),
@@ -309,6 +432,7 @@ PTB.renderBookmarkGroups = function (list, view, options) {
   }
 
   const root = element("div", "ptb-bm-root");
+  root.classList.toggle("ptb-batch-editing", batch.editing);
   for (const id of view.rootOrder) {
     if (rootBookmarks.has(id)) root.appendChild(makeBookmarkRow(rootBookmarks.get(id), null));
     else if (groupRows.has(id)) root.appendChild(groupRows.get(id));
@@ -320,5 +444,7 @@ PTB.renderBookmarkGroups = function (list, view, options) {
     const { id } = dragged;
     return { position: "into", commit: () => PTB.storage.placeRoot(game, id, null) };
   });
+  batch.sync?.();
   list.replaceChildren(status, root, menu);
+  if (batch.editing) list.prepend(batch.toolbar);
 };

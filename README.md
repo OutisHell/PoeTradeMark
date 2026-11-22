@@ -57,6 +57,8 @@ The extension supports the Korean, global and international-language trade sites
 
 ## Compare prices
 
+A bookmark shows the lowest asking price among the listings loaded on your latest visit to that search. Reopening the same link updates the price even if it has risen. Different currencies are compared using the league’s exchange rates. Hover over the price to see when it was observed. If no price can be compared yet, the previous observation stays visible.
+
 In the sidebar, choose a base currency to see listing prices converted with poe.ninja rates. For example, select **Divine Orb** to compare prices listed in different currencies. Open the rate table and use its edit button to save currency pairs you check often.
 
 ## Credits and privacy
@@ -128,6 +130,8 @@ PoE TradeMark는 **패스 오브 엑자일 1과 2의 거래소 검색 조건을 
 한국, 글로벌 및 여러 언어의 거래소를 지원합니다. 대만 거래소에서 저장한 즐겨찾기는 대만 거래소에서 열립니다. 검색 조건을 변환할 수 없는 경우 원본 링크를 열 수 있습니다.
 
 ### 가격 비교
+
+즐겨찾기에는 해당 검색을 마지막으로 방문했을 때 불러온 매물 중 최저가가 표시됩니다. 같은 링크를 다시 열면 가격이 올랐을 때도 갱신됩니다. 서로 다른 화폐는 해당 리그의 환율로 비교합니다. 가격 위에 마우스를 올리면 확인 시각이 보입니다. 아직 비교할 가격이 없으면 이전 관측값을 표시합니다.
 
 사이드바에서 기준 화폐를 고르면 poe.ninja 시세로 환산한 가격을 볼 수 있습니다. 예를 들어 **신성한 오브**를 선택하면 서로 다른 화폐로 올라온 매물을 같은 단위로 비교할 수 있습니다. 환율표의 편집 버튼으로 자주 확인하는 화폐 쌍을 저장할 수 있습니다.
 

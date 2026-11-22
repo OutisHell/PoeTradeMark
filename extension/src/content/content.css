@@ -555,7 +555,6 @@ body.ptb-has-sidebar #ptb-bookmark-button.ptb-bookmark-button {
   grid-column: 1 / -1;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  margin-top: 9px;
 }
 
 .ptb-sb-btn {

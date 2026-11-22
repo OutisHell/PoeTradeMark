@@ -9,8 +9,10 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
   }
   const activeId = view.collectionId;
   const collections = view.collections;
+  const editButton = container.bookmarkEditButton ??= document.createElement("button");
+  editButton.type = "button";
   const state = JSON.stringify([game, activeId, view.defaultCollection, collections, PTB.i18n.getLang()]);
-  if (container.dataset.ptbState === state) return;
+  if (container.dataset.ptbState === state) return editButton;
   container.dataset.ptbState = state;
   const t = PTB.i18n.t;
   const labels = PTB.backupLabels();
@@ -107,7 +109,7 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
       event.preventDefault();
       event.stopPropagation();
     });
-    container.replaceChildren(select, add, more, menu);
+    container.replaceChildren(editButton, select, add, more, menu);
   }
 
   function notice(text, role) {
@@ -267,4 +269,5 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
     dismiss.focus();
   }
   showControls();
+  return editButton;
 };

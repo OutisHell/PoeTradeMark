@@ -25,6 +25,12 @@
   },
   "content_scripts": [
     {
+      "matches": ["*://*.pathofexile.com/trade*", "*://poe.kakaogames.com/trade*", "*://*.pathofexile.tw/trade*"],
+      "js": ["src/content/listing-sample.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
       "matches": ["https://poe.kakaogames.com/trade/search/*", "https://poe.kakaogames.com/trade2/search/*", "https://*.pathofexile.com/trade/search/*", "https://*.pathofexile.com/trade2/search/*"],
       "js": ["src/content/trade-search.js"],
       "run_at": "document_start"
@@ -48,7 +54,7 @@
         "*://*.pathofexile.tw/trade2",
         "*://*.pathofexile.tw/trade2/*"
       ],
-      "js": ["src/common/i18n.js", "src/common/url.js", "src/common/trade-region.js", "src/common/redirect-control.js", "src/common/storage.js", "src/common/backup.js", "src/common/collection-controls.js", "src/common/bookmark-list.js", "src/common/rates.js", "src/assets/currency-meta.js", "src/assets/currency-meta-poe1.js", "src/assets/currency-names.js", "src/content/content.js"],
+      "js": ["src/common/i18n.js", "src/common/url.js", "src/common/trade-region.js", "src/common/redirect-control.js", "src/common/storage.js", "src/common/backup.js", "src/common/collection-controls.js", "src/common/bookmark-list.js", "src/common/bookmark-batch.js", "src/common/bookmark-summary.js", "src/assets/trade-categories.js", "src/common/rates.js", "src/assets/currency-meta.js", "src/assets/currency-meta-poe1.js", "src/assets/currency-names.js", "src/content/content.js"],
       "css": ["src/content/content.css", "src/common/bookmark-list.css", "src/common/collection-controls.css", "src/common/trade-region.css"],
       "run_at": "document_idle"
     }

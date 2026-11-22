@@ -8,6 +8,10 @@ let pendingBookmarkWrite = Promise.resolve();
 // 콘텐츠 스크립트는 CORS 때문에 poe.ninja를 직접 못 친다. 여기(확장 origin)에서만 fetch.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg) return;
+  if (msg.cmd === "ptb-named-selection") {
+    PTB.namedTradeSelection(_sender.url, msg.title).then(sendResponse, () => sendResponse(false));
+    return true;
+  }
   if (msg.cmd === "ptb-trade-leagues" || msg.cmd === "ptb-save-trade-snapshot") {
     const task = msg.cmd === "ptb-trade-leagues" ? Promise.resolve().then(() => PTB.tradeLeagues(msg.game, msg.force === true)) :
       PTB.tradeSnapshot(msg.href).then((patch) => PTB.redirectSettings(patch));

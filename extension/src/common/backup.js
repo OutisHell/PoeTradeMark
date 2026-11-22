@@ -46,6 +46,8 @@
     const low = record.lowPrice;
     return {
       id, game, host, type, league, searchId, title, realm: PTB.hostToRealm(host),
+      ...(Object.hasOwn(PTB.bookmarkRarityColors, record.rarity) ? { rarity: record.rarity } : {}),
+      ...(PTB.isTitleColor(record.titleColor) ? { titleColor: record.titleColor } : {}),
       ...(record.collectionId != null ? { collectionId: record.collectionId } : {}),
       folderId: record.folderId || null,
       createdAt: Number.isFinite(record.createdAt) ? record.createdAt : 0,
@@ -275,8 +277,8 @@
     for (const mark of data.bookmarks) {
       if (!ids.has(mark.id)) continue;
       const existing = localMark.get(mark.id);
-      if (!existing || PTB.bookmarkGame(existing) !== mark.game || collectionOf(existing) !== collectionOf(mark) || existing.type !== mark.type ||
-          existing.searchId !== mark.searchId || PTB.decodePathPart(existing.league) !== PTB.decodePathPart(mark.league)) invalid();
+      // A local destination edit can change both league and localized search token.
+      if (!existing || PTB.bookmarkGame(existing) !== mark.game || collectionOf(existing) !== collectionOf(mark) || existing.type !== mark.type) invalid();
     }
     const order = { ...rootOrders };
     for (const game of games.filter((game) => inScope(game, scope))) {

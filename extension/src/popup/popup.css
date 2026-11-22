@@ -213,6 +213,13 @@ input {
   white-space: nowrap;
 }
 
+/* Outside trade tabs the popup has a light background. Keep pale rarity text legible. */
+html:not(.ptb-game-poe1, .ptb-game-poe2) .ptb-rarity-title {
+  background: #151a22;
+  border-radius: 3px;
+  padding-inline: 4px;
+}
+
 .bookmark-meta {
   display: flex;
   gap: 6px;

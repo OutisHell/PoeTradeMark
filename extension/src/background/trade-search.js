@@ -17,26 +17,6 @@ async function loadTradeNames(game, region) {
   return tradeNamePacks.get(key);
 }
 
-async function unpackSearch(token) {
-  const binary = atob(decodeURIComponent(token).replace(/-/g, "+").replace(/_/g, "/"));
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-  const reader = stream.getReader();
-  const chunks = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.length;
-    if (size > 1024 * 1024) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  return JSON.parse(await new Blob(chunks).text());
-}
-
 async function packSearch(query) {
   const stream = new Blob([JSON.stringify(query)]).stream().pipeThrough(new CompressionStream("gzip"));
   const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
@@ -46,6 +26,18 @@ async function packSearch(query) {
 
 const regionOf = (host) => host === "pathofexile.com" ? "en" :
   Object.keys(PTB.tradeRegion.regions).find((key) => PTB.tradeRegion.regions[key][0] === host);
+
+// Older opaque links expose only the selected display text. Use the shipped name
+// catalog to recognize a whole unique name, optionally followed by a whole base type.
+PTB.namedTradeSelection = async function (href, title, namesFor = loadTradeNames) {
+  const info = PTB.parseTradeUrl(href);
+  if (!info || info.type !== "search" || !title) return false;
+  const region = regionOf(info.host);
+  if (!region || (info.game === "poe2" && region === "th")) return false;
+  const { name, type } = await namesFor(info.game, region);
+  if (type.includes(title)) return false;
+  return name.includes(title) || name.some(n => n && title.startsWith(n + " ") && type.includes(title.slice(n.length + 1)));
+};
 
 async function translateItemFields(query, game, from, to, namesFor) {
   const fields = ["name", "type"].filter((key) => {
@@ -108,7 +100,7 @@ function searchRoute(href) {
 
 async function searchPayload(route) {
   let payload;
-  if (route.token?.startsWith("H4sI")) payload = { query: await unpackSearch(route.token) };
+  if (route.token?.startsWith("H4sI")) payload = { query: await PTB.unpackTradeQuery(route.token) };
   else if (route.url.searchParams.has("q")) payload = JSON.parse(route.url.searchParams.get("q"));
   else return null;
   if (!payload?.query || typeof payload.query !== "object" || Array.isArray(payload.query)) throw Error("Invalid search");
@@ -164,7 +156,7 @@ PTB.localizeTradeSearch = async function (href, namesFor = loadTradeNames) {
   const match = url.pathname.match(/^(\/trade\/search\/[^/]+\/|\/trade2\/search\/poe2\/[^/]+\/)(H4sI[^/]{1,65536})(\/live)?\/?$/);
   if (!match) return null;
   let query;
-  try { query = await unpackSearch(match[2]); } catch { return null; }
+  try { query = await PTB.unpackTradeQuery(match[2]); } catch { return null; }
   if (!query || typeof query !== "object") return null;
   if (!await translateItemFields(query, PTB.gameFromUrl(href), from, to, namesFor)) return null;
   const token = await packSearch(query);

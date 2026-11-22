@@ -30,6 +30,15 @@ const original = {
   bookmarkFolders: [{ id: "group", game: "poe2", name: "Maps", collapsed: true }],
   bookmarkRootOrder: { poe1: ["one"], poe2: ["group"] },
 };
+test("collection JSON preserves new rarity and leaves legacy and unknown values uncolored", async () => {
+  const db = library({ bookmarks: [mark("new", "poe1", { rarity: "unique", titleColor: "#36a8fa" }), mark("old", "poe1"),
+    mark("bad", "poe1", { rarity: "constructor", titleColor: "transparent" })] });
+  const file = await db.backup.snapshot("poe1", "default");
+  const dest = library({});
+  await dest.backup.importFile(file, "new", "poe1", { name: "Build" });
+  assert.deepEqual(dest.state.bookmarks.map(b => b.rarity), ["unique", undefined, undefined]);
+  assert.deepEqual(dest.state.bookmarks.map(b => b.titleColor), ["#36a8fa", undefined, undefined]);
+});
 test("portable backup round-trips both games, groups, order and labels across separate profiles", async () => {
   const source = library({ ...original, accountToken: "secret" });
   const file = JSON.parse(JSON.stringify(await source.backup.snapshot()));
@@ -43,11 +52,13 @@ test("portable backup round-trips both games, groups, order and labels across se
 });
 test("merge preserves local edits and repeated import is idempotent", async () => {
   const file = await library(original).backup.snapshot();
-  const dest = library({ bookmarks: [mark("local", "poe2"), mark("one", "poe1", { title: "Local name" })] });
+  const dest = library({ bookmarks: [mark("local", "poe2"), mark("one", "poe1", { title: "Local name", league: "Standard", searchId: "LocalizedId" })] });
   await dest.backup.importFile(file, "merge");
   await dest.backup.importFile(file, "merge");
   assert.equal(dest.state.bookmarks.length, 3);
   assert.equal(dest.state.bookmarks.find((b) => b.id === "one").title, "Local name");
+  assert.equal(dest.state.bookmarks.find((b) => b.id === "one").league, "Standard");
+  assert.equal(dest.state.bookmarks.find((b) => b.id === "one").searchId, "LocalizedId");
   assert.deepEqual(dest.state.bookmarkRootOrder.poe2, ["local", "group"]);
 });
 test("portable backup preserves long compressed search links and escaped base64 characters", async () => {

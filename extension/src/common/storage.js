@@ -1,6 +1,12 @@
 // 즐겨찾기 목록은 각 화면에서 읽고, 변경은 백그라운드 워커에서 순서대로 처리한다.
 globalThis.PTB = globalThis.PTB || {};
 
+// GGG item-name colors (normalPopup through relicPopup). Frame 9 is a foil unique.
+PTB.bookmarkRarityColors = Object.freeze({
+  normal: "#c8c8c8", magic: "#8888ff", rare: "#ffff77", unique: "#af6025", uniquefoil: "#82ad6a",
+});
+PTB.isTitleColor = value => typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+
 PTB.bookmarkGame = function (bookmark) {
   return bookmark && bookmark.game === "poe2" ? "poe2" : "poe1";
 };
@@ -105,9 +111,11 @@ PTB.storage = {
     return (await this.listView(game)).bookmarks;
   },
   add: (partial) => writeBookmarkChange("add", partial),
+  recordSearchPrice: (search, price) => writeBookmarkChange("recordSearchPrice", search, price),
   update: (id, patch) => writeBookmarkChange("update", id, patch),
   remove: (id) => writeBookmarkChange("remove", id),
   move: (id, folderId) => writeBookmarkChange("move", id, folderId),
+  editSelected: (game, collection, ids, operation) => writeBookmarkChange("editSelected", game, collection, ids, operation),
   placeRoot: (game, id, targetId, after = false) => writeBookmarkChange("placeRoot", game, id, targetId, after),
   reorder: (game, ids, folderId = null) => writeBookmarkChange("reorder", game, ids, folderId),
 };
@@ -142,6 +150,14 @@ function newFolder(game, name, collectionId) {
   return folder;
 }
 
+function createBookmarkGroup(game, name, collectionId, folders) {
+  const taken = new Set(folders.filter(f => f.game === game && collectionOf(f) === collectionId).map(f => f.name));
+  const base = folderName(name);
+  let unique = base;
+  for (let i = 2; taken.has(unique); i++) unique = base + " " + i;
+  return newFolder(game, unique, collectionId);
+}
+
 function collectionName(name) {
   const trimmed = String(name || "").trim();
   if (!trimmed) throw new Error("Collection name is required");
@@ -150,6 +166,69 @@ function collectionName(name) {
 
 // 워커만 호출한다. 저장 배열을 읽고 쓰는 동안 다른 변경이 끼어들지 않는다.
 PTB.bookmarkChanges = {
+  async editSelected(game, collection, ids, operation) {
+    const state = await readBookmarkLists();
+    if (!["poe1", "poe2"].includes(game) || activeCollectionFor(game, state) !== collection ||
+        !collection || !Array.isArray(ids) || !ids.length) throw Error("Selection unavailable");
+    const selected = new Set(ids);
+    const marks = state.bookmarks.filter(b => selected.has(b.id) && PTB.bookmarkGame(b) === game && collectionOf(b) === collection);
+    if (marks.length !== selected.size) throw Error("Selection changed");
+    const changes = { bookmarks: state.bookmarks };
+    if (operation.kind === "location") {
+      const { region, league } = operation;
+      if ((!region && !league) || (region && !Object.hasOwn(PTB.tradeRegion.regions, region)) ||
+          (league && (typeof league !== "string" || league.length > 160 || !league.trim() ||
+            /[/\\?#%\x00-\x1f\x7f]/.test(league) || /^\.{1,2}$/.test(league)))) throw Error("Invalid trade destination");
+      for (const mark of marks) {
+        if (region) {
+          const [host] = PTB.tradeRegion.regions[region];
+          if (mark.host !== host && mark.type === "search" && mark.searchId.startsWith("H4sI")) {
+            const href = await PTB.profileTradeUrl(PTB.buildTradeUrl(mark), region, { league: league || mark.league });
+            mark.searchId = PTB.parseTradeUrl(href).searchId;
+          }
+          mark.host = host;
+          mark.realm = region;
+        }
+        if (league) mark.league = league;
+      }
+    } else {
+      const folders = state.folders.filter(f => f.game === game && collectionOf(f) === collection);
+      const rootOrder = rootOrderFor(game, state.bookmarks, state.folders, state.rootOrders);
+      let destination;
+      let order = rootOrder.filter(id => !selected.has(id));
+      if (operation.kind === "group") {
+        const folder = createBookmarkGroup(game, operation.name, collection, folders);
+        const parents = new Set(marks.map(b => b.folderId));
+        const anchor = rootOrder.find(id => selected.has(id) || parents.has(id));
+        const index = rootOrder.slice(0, rootOrder.indexOf(anchor)).filter(id => !selected.has(id)).length;
+        order.splice(index, 0, folder.id);
+        destination = folder.id;
+        changes.bookmarkFolders = [...state.folders, folder];
+      } else if (operation.kind === "move" && (operation.folderId === null || folders.some(f => f.id === operation.folderId))) {
+        destination = operation.folderId;
+        if (!destination) order = [...rootOrder, ...marks.filter(b => !rootOrder.includes(b.id)).map(b => b.id)];
+      } else throw Error("Group unavailable");
+      for (const mark of marks) mark.folderId = destination;
+      changes.bookmarkRootOrder = { ...state.rootOrders, [game]: order };
+      if (destination) changes.bookmarkRecentGroups = { ...state.recentGroups, [recentKeyFor(game, collection)]: destination };
+    }
+    await chrome.storage.local.set(changes);
+  },
+  async recordSearchPrice(search, price) {
+    if (!search?.searchId || !Number.isFinite(price?.amount) || price.amount <= 0 ||
+        !price.currency || !Number.isFinite(price.at)) return;
+    const saved = await chrome.storage.local.get(["bookmarks"]);
+    const bookmarks = bookmarkArray(saved.bookmarks);
+    let changed = false;
+    for (const mark of bookmarks) {
+      if (mark.searchId !== search.searchId || mark.host !== search.host || mark.type !== search.type ||
+          PTB.bookmarkGame(mark) !== search.game || PTB.decodePathPart(mark.league) !== search.league ||
+          mark.lowPrice?.at >= price.at) continue;
+      mark.lowPrice = price;
+      changed = true;
+    }
+    if (changed) await chrome.storage.local.set({ bookmarks });
+  },
   async moveToCollection(game, id, destination) {
     const state = await readBookmarkLists();
     const { bookmarks, folders, rootOrders, recentGroups } = state;
@@ -266,7 +345,7 @@ PTB.bookmarkChanges = {
       game,
       folderId: null,
       title,
-      itemName: String(partial.itemName || partial.title || "").trim(),
+      itemName: String(partial.itemName ?? partial.title ?? "").trim(),
       realm: partial.realm || PTB.hostToRealm(partial.host),
       id: crypto.randomUUID(),
       createdAt: Date.now(),
@@ -283,6 +362,7 @@ PTB.bookmarkChanges = {
     const bookmark = bookmarks.find((item) => item.id === id);
     if (!bookmark) return;
     if (Object.hasOwn(patch, "title")) bookmark.title = patch.title;
+    if (Object.values(PTB.bookmarkRarityColors).includes(patch.titleColor)) bookmark.titleColor = patch.titleColor;
     if (Object.hasOwn(patch, "lowPrice")) bookmark.lowPrice = patch.lowPrice;
     await chrome.storage.local.set({ bookmarks });
   },
@@ -372,11 +452,7 @@ PTB.bookmarkChanges = {
     if (sourceId !== null && (!source || PTB.bookmarkGame(source) !== game || collectionOf(source) !== collectionId)) {
       throw new Error("Bookmarks must belong to the same game and collection");
     }
-    const base = folderName(name);
-    const taken = new Set(folders.filter((folder) => folder.game === game && collectionOf(folder) === collectionId).map((folder) => folder.name));
-    let unique = base;
-    for (let i = 2; taken.has(unique); i += 1) unique = `${base} ${i}`;
-    const folder = newFolder(game, unique, collectionId);
+    const folder = createBookmarkGroup(game, name, collectionId, folders);
     target.folderId = folder.id;
     if (source) source.folderId = folder.id;
     await chrome.storage.local.set({
