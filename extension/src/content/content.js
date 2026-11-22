@@ -11,6 +11,8 @@
 
   const state = {
     button: null,
+    collectionGame: null,
+    hasCollection: false,
     href: "",
     saving: false,
     feedbackTimer: 0,
@@ -189,7 +191,8 @@
 
   const setBookmarkFace = (button, saved) => {
     try {
-      const label = saved ? message("saved", "Saved") : message("bookmarkButton", "Bookmark");
+      const label = !state.hasCollection ? message("collectionStart") :
+        saved ? message("saved", "Saved") : message("bookmarkButton", "Bookmark");
       setIconBtn(button, saved ? "check" : "starPlus", label);
     } catch (_error) {}
   };
@@ -207,7 +210,7 @@
     state.feedbackTimer = setTimeout(() => {
       try {
         button.classList.remove(SAVED_CLASS);
-        button.disabled = false;
+        button.disabled = !state.hasCollection;
         setBookmarkFace(button, false);
       } catch (_error) {
         // The button may have been removed after a route change.
@@ -223,7 +226,7 @@
       // Click events from the extension button should be cancelable, but do not depend on it.
     }
 
-    if (state.saving) {
+    if (state.saving || !state.hasCollection) {
       return;
     }
 
@@ -260,7 +263,7 @@
     } catch (_error) {
       const button = state.button;
       if (button) {
-        button.disabled = false;
+        button.disabled = !state.hasCollection;
         setBookmarkFace(button, false);
       }
     } finally {
@@ -290,7 +293,7 @@
       state.button = button;
       button.hidden = false;
       if (!state.saving && !button.classList.contains(SAVED_CLASS)) {
-        button.disabled = false;
+        button.disabled = !state.hasCollection;
         setBookmarkFace(button, false);
       }
 
@@ -309,6 +312,25 @@
       // Ignore DOM detach during navigation.
     }
   };
+
+  let collectionRead = 0;
+  async function refreshSaveAvailability(game) {
+    const version = ++collectionRead;
+    state.collectionGame = game;
+    state.hasCollection = false;
+    if (state.button) state.button.disabled = true;
+    if (!game) return;
+    try {
+      const available = await PTB.storage.hasCollection(game);
+      if (version !== collectionRead || game !== parseCurrentUrl()?.game) return;
+      state.hasCollection = available;
+      if (!available && state.button) {
+        clearTimeout(state.feedbackTimer);
+        state.button.classList.remove(SAVED_CLASS);
+      }
+      ensureButton();
+    } catch (_error) { /* Keep saving disabled until storage is available. */ }
+  }
 
   function applyGameTheme() {
     const game = PTB.gameFromUrl ? PTB.gameFromUrl(globalThis.location?.href || "") : null;
@@ -330,6 +352,8 @@
       applyGameTheme();
       renderPreferredSiteLink();
 
+      const game = info?.game || null;
+      if (state.collectionGame !== game) refreshSaveAvailability(game);
       if (info) {
         ensureButton();
       } else {
@@ -997,6 +1021,9 @@
     try {
       ensureSidebarToggle();
       chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === "local" && (changes.bookmarkCollections || changes.bookmarkDefaultCollections)) {
+          refreshSaveAvailability(parseCurrentUrl()?.game || null);
+        }
         if (area === "local" && changes.ptbRedirectSettings) {
           state.redirectSettings = changes.ptbRedirectSettings.newValue || null;
           renderPreferredSiteLink();

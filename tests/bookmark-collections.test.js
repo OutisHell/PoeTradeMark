@@ -59,10 +59,19 @@ test("deleting the starting collection removes only its game data and keeps subs
   assert.equal(saved.bookmarkRecentGroups.poe1, undefined);
   await PTB.collections.remove("poe1", other.id);
   const fresh = await PTB.storage.listView("poe1");
-  assert.equal(fresh.defaultCollection.name, "");
-  assert.equal(fresh.collectionId, "default");
+  assert.equal(await PTB.storage.hasCollection("poe1"), false);
+  assert.equal(await PTB.storage.hasCollection("poe2"), true);
+  assert.equal(fresh.defaultCollection, null);
+  assert.equal(fresh.collectionId, null);
   assert.deepEqual(fresh.bookmarks, []);
+  await assert.rejects(PTB.storage.add({ game: "poe1", title: "No collection" }));
+  await assert.rejects(PTB.folders.add("poe1", "No collection"));
+  assert.equal((await PTB.storage.listView("poe2")).collectionId, "default");
+  const created = await PTB.collections.add("poe1", "New build");
+  assert.equal(await PTB.storage.hasCollection("poe1"), true);
   const next = await PTB.storage.add({ game: "poe1", title: "First" });
+  assert.equal(next.collectionId, created.id);
+  assert.equal((await PTB.storage.listView("poe1")).defaultCollection, null);
   assert.deepEqual((await PTB.storage.listView("poe1")).rootOrder, [next.id]);
 });
 

@@ -67,6 +67,13 @@ async function writeBookmarkChange(action, ...args) {
 }
 
 PTB.storage = {
+  async hasCollection(game) {
+    const { bookmarkCollections, bookmarkDefaultCollections } = await chrome.storage.local.get([
+      "bookmarkCollections", "bookmarkDefaultCollections",
+    ]);
+    return !!defaultCollectionFor(game, bookmarkDefaultCollections || {}) ||
+      bookmarkArray(bookmarkCollections).some((item) => item.game === game);
+  },
   async listView(game) {
     const state = await readBookmarkLists();
     const { bookmarks, folders, rootOrders, recentGroups, collections, defaultCollections } = state;
@@ -187,14 +194,13 @@ PTB.bookmarkChanges = {
     const remaining = collections.filter((c) => c.id !== id || c.game !== game);
     const defaults = { ...state.defaultCollections };
     if (id === "default") defaults[game] = null;
-    if (defaults[game] === null && !remaining.some((c) => c.game === game)) delete defaults[game];
     const next = activeCollectionFor(game, { activeCollections, collections: remaining, defaultCollections: defaults });
     const changes = {
       bookmarks: remainingMarks,
       bookmarkFolders: remainingGroups,
       bookmarkCollections: remaining,
       bookmarkDefaultCollections: defaults,
-      bookmarkActiveCollections: { ...activeCollections, [game]: next },
+      bookmarkActiveCollections: { ...activeCollections, [game]: next ?? null },
       bookmarkRootOrder: { ...rootOrders, [game]: rootOrderFor(game, remainingMarks, remainingGroups, rootOrders) },
       bookmarkRecentGroups: recent,
     };
@@ -239,6 +245,7 @@ PTB.bookmarkChanges = {
     const { bookmarks } = state;
     const game = PTB.bookmarkGame(partial);
     const collectionId = activeCollectionFor(game, state);
+    if (!collectionId) throw new Error("Create a collection before saving bookmarks");
     // 같은 게임 안에서 같은 제목이 이미 있으면 뒤에 (2),(3)… 붙여 유일하게
     let title = partial.title;
     const base = (partial.title || "").trim();
@@ -344,6 +351,7 @@ PTB.bookmarkChanges = {
     const state = await readBookmarkLists();
     const { folders, recentGroups } = state;
     const collectionId = activeCollectionFor(game, state);
+    if (!collectionId) throw new Error("Create a collection before adding groups");
     const folder = newFolder(game, name, collectionId);
     await chrome.storage.local.set({
       bookmarkFolders: [...folders, folder],

@@ -1,5 +1,7 @@
 # PoE TradeMark
 
+English · [한국어](README.ko.md)
+
 PoE TradeMark is a Chrome extension for saving Path of Exile and Path of Exile 2 trade searches. Reopen a search from your bookmarks, share a collection with another player, or open trade links with your preferred league and trade mode. Each game has its own bookmark list.
 
 ## Install in Chrome
@@ -20,11 +22,19 @@ PoE TradeMark is a Chrome extension for saving Path of Exile and Path of Exile 2
 
 A **collection** is a list you can switch or share, such as the gear searches for one build. A **group** keeps related bookmarks together inside that list.
 
-- **Collections.** Use the selector above your bookmarks to switch lists and **+** to create one. The **⋯** menu lets you rename or delete the selected collection, including the starting **My bookmarks** collection. Deleting a collection also deletes its bookmarks and groups. If you delete your last collection, you get an empty list for your next search.
-- **Groups.** Drag a bookmark onto another to group them, or drop it on the line between entries to reorder it. Click a group name to expand or collapse it. Right-click a bookmark for **Move to group**, or right-click a bookmark or group for **Move to collection**.
+- **Collections.** Each game starts with a **My bookmarks** collection. Use the selector above your bookmarks to switch collections and **+** to create one. Use **⋯** to rename or delete the selected collection. Deleting it also removes its bookmarks and groups. After deleting the last collection, click **+** to create one or import a collection to start saving searches again.
 - **Share a collection.** Choose **⋯ → Export collection** to download its bookmarks, groups and order as JSON. On the same game's trade site, choose **⋯ → Import collection** to load the file. You can merge it into the current collection, replace the current collection after confirmation, or create a new collection.
 
 <img src="docs/images/collection-menu.png" width="340" alt="The Atlas gear collection with its More menu open, showing Rename, Import, Export and Delete collection.">
+
+### Group related searches
+
+For example, keep two belt searches together in a **Belts** group inside your build collection.
+
+1. Drag one search onto the **center** of the other ungrouped search. When the row highlights, release to group them. To start with a single search, right-click it and choose **Group**. Right-click the group heading and choose **Rename** to name it **Belts**.
+2. To add another search, drop it on the group heading or right-click it and choose **Move to group → Belts**. The most recently used group also has a shortcut in this menu. Click the group name to collapse or expand it.
+3. Drop an entry on the **line between rows** to change its position. To take one search out, drag it to a line outside the group or right-click it and choose **Remove from group**.
+4. To dissolve the group, right-click its heading and choose **Ungroup**. Its searches stay in the collection. To move the group and its searches together, choose **Move to collection**.
 
 ## Open searches with your trade preferences
 

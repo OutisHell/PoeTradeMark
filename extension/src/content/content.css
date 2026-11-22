@@ -40,6 +40,11 @@
   color: #d8ffe1;
 }
 
+#ptb-bookmark-button.ptb-bookmark-button:disabled:not(.ptb-is-saved, .ptb-is-busy) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 #ptb-bookmark-button.ptb-bookmark-button[hidden] {
   display: none !important;
 }

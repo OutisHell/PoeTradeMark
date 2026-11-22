@@ -73,8 +73,6 @@ test("malformed backup cannot overwrite existing data", async () => {
     (f) => { f.bookmarks[0].league = "%2E%2E"; },
     (f) => { f.order.poe1 = []; },
     (f) => {
-      f.bookmarks = f.bookmarks.filter((item) => item.game !== "poe1");
-      f.order.poe1 = [];
       f.defaultCollections = { poe1: null };
     },
   ]) {
@@ -83,6 +81,13 @@ test("malformed backup cannot overwrite existing data", async () => {
     await assert.rejects(dest.backup.importFile(file, "replace"));
     assert.deepEqual(dest.state, before);
   }
+});
+
+test("a game with zero collections can be read without recreating its default", async () => {
+  const source = library({ bookmarkDefaultCollections: { poe1: null } });
+  const data = await source.backup.snapshot();
+  assert.equal(data.defaultCollections.poe1, null);
+  assert.deepEqual(Array.from(source.backup.sourceCollections(data), c => c.game), ["poe2"]);
 });
 
 test("selected-game replace retains the other game's data, order, and recent group", async () => {

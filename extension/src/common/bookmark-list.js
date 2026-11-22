@@ -14,6 +14,10 @@ PTB.renderBookmarkGroups = function (list, view, options) {
     if (text !== undefined) el.textContent = text;
     return el;
   };
+  if (!view.collectionId) {
+    list.replaceChildren(element("p", "ptb-bm-empty", t("collectionStart")));
+    return;
+  }
   const button = (label) => {
     const el = element("button", "ptb-bm-button", label);
     el.type = "button";

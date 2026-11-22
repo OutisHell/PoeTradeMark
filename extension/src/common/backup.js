@@ -92,7 +92,7 @@
       for (const [game, name] of Object.entries(defaults)) {
         if (!isGame(game) || !inScope(game, scope) || (sharedId !== null && sharedId !== "default") ||
             (name !== null && (!isText(name) || !name.trim()))) invalid();
-        if (name === null && (sharedId === "default" || !collections.some((item) => item.game === game) ||
+        if (name === null && (sharedId === "default" ||
             items.some((item) => item.game === game && collectionOf(item) === "default"))) invalid();
       }
     }

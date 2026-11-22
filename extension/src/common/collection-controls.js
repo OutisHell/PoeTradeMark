@@ -36,6 +36,10 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
 
   function showControls() {
     const add = button("collectionAdd", "add", () => edit(false), "+");
+    if (!activeId) {
+      container.replaceChildren(add, button("collectionImport", "import", chooseFile));
+      return;
+    }
     const more = button("collectionMore", "more", null, "⋯");
     const menu = document.createElement("div");
     menu.className = "ptb-collection-menu";
@@ -120,7 +124,7 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
       await action();
       if (container.dataset.ptbState === state) delete container.dataset.ptbState;
       await refresh();
-      container.querySelector("select")?.focus();
+      container.querySelector("select, .ptb-collection-add")?.focus();
       if (done) notice(done, "status");
     } catch (error) {
       console.error(error);
@@ -134,7 +138,7 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
 
   function cancel() {
     showControls();
-    select.focus();
+    container.querySelector("select, .ptb-collection-add")?.focus();
   }
   function onEscape(event) {
     if (event.key === "Escape" && !event.isComposing && !event.target.disabled) {
@@ -171,12 +175,12 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
   function reviewImport(data, filename) {
     const panel = document.createElement("form");
     panel.className = "ptb-collection-form ptb-collection-review";
-    const target = (game === "poe1" ? "PoE 1" : "PoE 2") + " · " + activeName;
+    const target = [game === "poe1" ? "PoE 1" : "PoE 2", active && activeName].filter(Boolean).join(" · ");
     const summary = document.createElement("span");
     summary.textContent = labels.summary(target, data.bookmarks.length, data.folders.length);
     const mode = document.createElement("select");
     mode.setAttribute("aria-label", labels.mode);
-    if (PTB.backup.sourceCollections(data).length === 1) {
+    if (activeId && PTB.backup.sourceCollections(data).length === 1) {
       mode.add(new Option(labels.merge, "merge"));
       mode.add(new Option(labels.replace, "replace"));
     }
