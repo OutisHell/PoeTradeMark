@@ -18,6 +18,7 @@
     feedbackTimer: 0,
     sidebar: null,
     sidebarOpen: false,
+    showingRecent: false,
     redirectSettings: undefined,
   };
 
@@ -85,13 +86,7 @@
   // 거래소 결과 DOM(KR poe.kakaogames.com / 글로벌 동일 코드베이스)에 맞춘 셀렉터.
   // 결과 1행 = `.resultset .row[data-id]`, 아이콘 = 그 안의 `.icon img`(…/gen/image/…),
   // 제목 = `.item-popup__header-line`(첫 줄 = 아이템명). 사이트 로고를 피하려 행 내부로 한정.
-  const RESULT_ROW_SELECTORS = [
-    ".resultset .row[data-id]",
-    ".results .row[data-id]",
-    ".row[data-id]",
-    ".resultset .row",
-    ".search-results .row",
-  ];
+  let initialSearchPath = location.pathname;
 
   const ICON_SELECTORS = [
     ".icon img",
@@ -189,40 +184,157 @@
     }
   };
 
-  function currentListingSample(info) {
-    if (info.type !== "search") return null;
-    const resultList = document.querySelector(".resultset, .search-results, .results") || document;
-    const ids = [...new Set(Array.from(resultList.querySelectorAll(".row[data-id]"), row => row.dataset.id).filter(Boolean))].slice(0, 600);
-    if (!ids.length) return null;
+  // Capture translated stat names when the page sends its search, before a later
+  // edit can put a different set of equally many filters in the same form.
+  document.addEventListener("ptb-read-search-labels", ({ target }) => {
+    if (!(target instanceof HTMLTemplateElement)) return;
+    const { labels, statNames } = captureFilters();
+    target.dataset.labels = JSON.stringify({ labels, statNames });
+  });
+
+  function currentListingSample(info, listings, details) {
+    const ids = listings.map(row => row.id);
     const bridge = document.createElement("template");
-    bridge.dataset.request = JSON.stringify({ ids, query: info.searchId, league: info.league, game: info.game === "poe2" ? "trade2" : "trade" });
+    bridge.dataset.request = JSON.stringify({ ids, details, query: info.searchId, league: info.league, game: info.game === "poe2" ? "trade2" : "trade" });
     document.documentElement.appendChild(bridge);
     try {
       bridge.dispatchEvent(new Event("ptb-read-listing-sample", { bubbles: true }));
       const sample = JSON.parse(bridge.dataset.sample || "null");
-      return Array.isArray(sample?.rows) && sample.rows.length === ids.length ? sample : null;
+      return Array.isArray(sample?.rows) && sample.rows.length === ids.length &&
+        Array.isArray(sample.matched) && sample.matched.length === ids.length ? sample : null;
     } catch {
       return null;
     } finally { bridge.remove(); }
   }
 
-  const captureResultDetails = async (info) => {
-    const sample = currentListingSample(info);
-    const row = queryOne(document, RESULT_ROW_SELECTORS);
-    const iconUrl = row ? queryOne(row, ICON_SELECTORS)?.src || null : null;
-    const form = { title: readSearchTitle(), ...readItemType(), ...captureFilters() };
-    let query = null;
-    if (info.type === "search" && info.searchId.startsWith("H4sI")) {
-      try { query = await PTB.unpackTradeQuery(info.searchId); } catch { /* Read the form for unsupported tokens. */ }
+  let decodedId, decodedQuery;
+  function queryFor(info) {
+    if (info.type !== "search" || !info.searchId.startsWith("H4sI")) return null;
+    if (decodedId !== info.searchId) {
+      decodedId = info.searchId;
+      decodedQuery = PTB.unpackTradeQuery(decodedId).catch(() => null);
+    }
+    return decodedQuery;
+  }
+
+  async function verifiedListings(info, listings, details = false) {
+    let raw = currentListingSample(info, listings, details);
+    const initial = location.pathname === initialSearchPath;
+    if (raw?.decoding && details) {
+      // The site can update the URL before our clone of the same response is decoded.
+      await new Promise(resolve => {
+        function finish() {
+          clearTimeout(timer);
+          document.removeEventListener("ptb-listings-ready", finish);
+          resolve();
+        }
+        const timer = setTimeout(finish, 250);
+        document.addEventListener("ptb-listings-ready", finish);
+      });
+      raw = currentListingSample(info, listings, details);
+    }
+    const query = details || (raw?.known && raw.query !== info.searchId) ? await queryFor(info) : null;
+    const sample = await PTB.matchListingSample(raw, info.searchId, query);
+    const eligible = raw?.known ? listings.flatMap((row, i) => sample?.matched[i]
+      ? [{ ...row, price: sample.prices?.[i] ?? row.price }] : []) :
+      listings.filter(row => !raw?.decoding && row.sameSearch && (initial || info.type !== "search"));
+    const canReadForm = info.type !== "search" || (raw?.known
+      ? Boolean(sample && (eligible.length || sample.total === 0)) : initial);
+    return { query: query || sample?.submitted?.query, sample, eligible, canReadForm };
+  }
+
+  const captureResultDetails = async (info, verified) => {
+    let form = { title: readSearchTitle(), ...readItemType(), ...captureFilters() };
+    const { query, sample, eligible, canReadForm } = verified || await verifiedListings(info, readListingPrices(true), true);
+    if (!query && !canReadForm) form = { filters: [] };
+    if (query) {
+      Object.assign(form.labels, sample?.submitted?.labels);
     }
     if (!query && info.type === "search" && form.title) {
       const named = await chrome.runtime.sendMessage({ cmd: "ptb-named-selection", title: form.title }).catch(() => false);
       if (named === true) form.named = true;
     }
+    const lang = PTB.i18n.getLang();
+    const catalog = query ? await PTB.loadFilterCatalog(info.game, lang).catch(() => null) : null;
     const categoryLabels = PTB.tradeCategoryLabels[info.game]?.[info.realm];
-    const matchingSample = await PTB.matchListingSample(sample, info.searchId, query);
-    return { ...PTB.bookmarkSummary(query, form, categoryLabels, matchingSample), iconUrl };
+    const summary = PTB.bookmarkSummary(query, form, categoryLabels, sample, catalog, lang);
+    return { ...summary,
+      ...(sample?.known && sample.total === 0 ? { emptyPriceAt: sample.observedAt } : {}),
+      ...(query && !summary.itemName ? { autoFilterTitle: summary.title } : {}),
+      ...(query && !info.searchId.startsWith("H4sI") ? { filterQuery: { filters: query.filters, stats: query.stats } } : {}),
+      iconUrl: eligible[0]?.iconUrl ?? null, lowPrice: observedMinimum(info, eligible, sample) };
   };
+
+  async function bookmarkSnapshot(info, verified) {
+    const { filterParts, ...details } = await captureResultDetails(info, verified);
+    return { ...info, ...details, query: null, sort: null };
+  }
+
+  let recordRecent = false, recentTimer, recentObservation, pendingRecent;
+  async function rememberCurrentSearch(force = false) {
+    const info = parseCurrentUrl();
+    if (!recordRecent || !info) return;
+    const href = location.href;
+    const verified = await verifiedListings(info, readListingPrices(true), true);
+    const at = verified.sample?.searchAt;
+    if (!at || !verified.sample.known || location.href !== href || !recordRecent) return;
+    const observation = JSON.stringify([href, at]);
+    if (observation === recentObservation) return at;
+    if (!force && verified.sample.total !== 0 && !verified.eligible.length && Date.now() - at < 1500) {
+      clearTimeout(recentTimer);
+      recentTimer = setTimeout(() => { pendingRecent = rememberCurrentSearch(true).catch(console.error); }, 1500);
+      return;
+    }
+    recentObservation = observation;
+    try {
+      const snapshot = await bookmarkSnapshot(info, verified);
+      if (recordRecent && location.href === href) {
+        await PTB.recentAction("record", snapshot, at);
+        return at;
+      }
+    } catch (err) {
+      if (recentObservation === observation) recentObservation = null;
+      throw err;
+    }
+  }
+  function scheduleRecent() {
+    if (!recordRecent) return;
+    clearTimeout(recentTimer);
+    recentTimer = setTimeout(() => {
+      pendingRecent = rememberCurrentSearch().catch(console.error);
+    }, 220);
+  }
+  function initRecentCapture() {
+    if (chrome.extension.inIncognitoContext) return;
+    let notice;
+    chrome.storage.local.get(["ptbRecentEnabled", "ptbRecentNoticeSeen"]).then(async data => {
+      recordRecent = data.ptbRecentEnabled !== false;
+      scheduleRecent();
+      if (!recordRecent || data.ptbRecentNoticeSeen || !document.body) return;
+      await PTB.i18n.init();
+      notice = document.createElement("aside");
+      notice.className = "ptb-recent-notice";
+      const label = document.createElement("label");
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.checked = true;
+      toggle.onchange = () => PTB.recentAction("setEnabled", false);
+      label.append(toggle, " " + message("recentRecording"));
+      const close = document.createElement("button");
+      close.type = "button";
+      close.textContent = message("close", "Close");
+      close.onclick = () => chrome.storage.local.set({ ptbRecentNoticeSeen: true });
+      notice.append(message("recentNotice"), label, close);
+      document.body.append(notice);
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && (changes.ptbRecentNoticeSeen || changes.ptbRecentEnabled)) notice?.remove();
+      if (area === "local" && changes.ptbRecentEnabled) {
+        recordRecent = changes.ptbRecentEnabled.newValue !== false;
+      }
+    });
+    document.addEventListener("ptb-listings-ready", scheduleRecent);
+  }
 
   const setBookmarkFace = (button, saved) => {
     try {
@@ -265,6 +377,7 @@
       return;
     }
 
+    const href = location.href;
     const info = parseCurrentUrl();
     const storage = globalThis.PTB?.storage;
     if (!info || typeof storage?.add !== "function") {
@@ -281,21 +394,12 @@
         button.classList.add(BUSY_CLASS);
       }
 
-      const lowPrice = observedMinimum(info, readListingPrices());
-      const { title, itemName, iconUrl, filters, rarity } = await captureResultDetails(info);
-      await storage.add({
-        ...info,
-        title,
-        itemName,
-        ...(rarity ? { rarity } : {}),
-        iconUrl,
-        filters,
-        query: null,
-        sort: null,
-        lowPrice: lowPrice,
-      });
+      await pendingRecent;
+      const at = recordRecent && location.href === href && await rememberCurrentSearch(true);
+      const promoted = at && await PTB.recentAction("promote", info.game, null, PTB.buildTradeUrl(info), at);
+      if (!promoted) await storage.add(await bookmarkSnapshot(info));
 
-      showSavedFeedback();
+      if (location.href === href) showSavedFeedback();
     } catch (_error) {
       const button = state.button;
       if (button) {
@@ -306,6 +410,7 @@
       state.saving = false;
       if (state.button) {
         state.button.classList.remove(BUSY_CLASS);
+        if (!state.button.classList.contains(SAVED_CLASS)) state.button.disabled = !state.hasCollection;
       }
     }
   };
@@ -384,9 +489,15 @@
       const href = globalThis.location?.href || "";
       const info = parseCurrentUrl();
       const hrefChanged = state.href !== href;
+      if (initialSearchPath !== location.pathname) initialSearchPath = null;
+      if (hrefChanged) {
+        scheduleRecent();
+        clearTimeout(state.feedbackTimer);
+        state.button?.classList.remove(SAVED_CLASS);
+      }
       state.href = href;
       applyGameTheme();
-      renderPreferredSiteLink();
+      if (hrefChanged) renderPreferredSiteLink();
 
       const game = info?.game || null;
       if (state.collectionGame !== game) refreshSaveAvailability(game);
@@ -397,7 +508,6 @@
       }
       if (hrefChanged && state.sidebarOpen) renderSidebarList();
       if (hrefChanged) {
-        lastObservation = "";
         fx.league = "";
         refreshListingFx().catch(() => {});
       }
@@ -470,6 +580,7 @@
   };
 
   const ICO = {
+    history: PTB.historyIconPaths,
     redirect: [["path", { d: "M3 20v-6a4 4 0 0 1 4-4h14m-6-6 6 6-6 6" }]],
     chevronsRight: [
       ["path", { d: "m6 17 5-5-5-5" }],
@@ -677,14 +788,11 @@
       e.stopPropagation();
       PTB.editBookmarkTitle(titleEl, bookmark, "ptb-sb-title-input", renderSidebarList);
     });
-    nameRow.appendChild(pencil);
+    if (!bookmark.recentId) nameRow.appendChild(pencil);
     nameRow.appendChild(titleEl);
     const tagRow = sbEl("div", "ptb-sb-tagrow");
     const priceEl = buildLowPriceRow(bookmark);
     if (priceEl && priceEl.firstChild) tagRow.appendChild(priceEl);
-    const realmLabel =
-      globalThis.PTB && PTB.realmLabel ? PTB.realmLabel(bookmark.realm) : (bookmark.realm || "").toUpperCase();
-    tagRow.appendChild(sbEl("span", "ptb-sb-realm", realmLabel));
     if (bookmark.league) tagRow.appendChild(sbEl("span", "ptb-sb-league", bookmark.league));
     main.appendChild(tagRow);
     main.appendChild(nameRow);
@@ -693,10 +801,7 @@
     const jumpBtn = sbEl("a", "ptb-sb-btn ptb-sb-jump ptb-sb-ico");
     jumpBtn.title = message("jump", "Open");
     jumpBtn.appendChild(lucideEl("chevronsRight"));
-    try {
-      const buildTradeUrl = globalThis.PTB && PTB.buildTradeUrl;
-      if (typeof buildTradeUrl === "function") jumpBtn.href = buildTradeUrl(bookmark);
-    } catch (_e) {}
+    jumpBtn.href = bookmark.recentId ? PTB.recentJumpUrl(bookmark) : PTB.bookmarkJumpUrl(bookmark);
     const copyBtn = sbEl("button", "ptb-sb-btn ptb-sb-ico");
     copyBtn.type = "button";
     copyBtn.title = message("copyUrl", "Copy");
@@ -730,15 +835,16 @@
     });
     actions.appendChild(PTB.tradeRegion.splitButton(jumpBtn, bookmark));
     actions.appendChild(copyBtn);
-    actions.appendChild(deleteBtn);
+    actions.appendChild(bookmark.recentId ? PTB.recentSaveButton(bookmark, "ptb-sb-btn ptb-sb-ico") : deleteBtn);
 
     const grip = sbEl("span", "ptb-sb-rategrip", "⋮⋮");
     grip.title = message("folderDrag", "Drag bookmark");
 
-    row.appendChild(grip);
+    if (bookmark.recentId) row.classList.add("ptb-recent-card");
+    else row.appendChild(grip);
     row.appendChild(thumb);
     row.appendChild(main);
-    PTB.appendBookmarkFilters(row, bookmark.filters, "ptb-sb-filters", "ptb-sb-chip");
+    PTB.appendBookmarkFilters(row, bookmark.filters, "ptb-sb-filters", "ptb-sb-chip", bookmark.filterParts);
     row.appendChild(actions);
     return row;
   };
@@ -758,14 +864,25 @@
       if (!list) return;
       const version = ++sidebarListVersion;
       const game = currentGame();
+      const controls = state.sidebar.querySelector(".ptb-collection-controls");
+      const q = String(fx.bmQuery || "").trim();
+      if (state.showingRecent) {
+        const recent = await PTB.readRecentView(game);
+        if (version !== sidebarListVersion || game !== currentGame()) return;
+        PTB.renderRecentView(list, controls, recent, buildSidebarRow, () => {
+          setSidebarOpen(true, false);
+          document.getElementById(SIDEBAR_TOGGLE_ID)?.focus();
+        }, q && (mark => bookmarkMatches(mark, q)));
+        return;
+      }
       const view = await PTB.storage.listView(game);
+      view.bookmarks = await PTB.localizeBookmarkList(view.bookmarks);
       if (version !== sidebarListVersion || game !== currentGame()) return;
-      const editButton = PTB.renderCollectionControls(state.sidebar.querySelector(".ptb-collection-controls"), game, view, renderSidebarList);
+      const editButton = PTB.renderCollectionControls(controls, game, view, renderSidebarList);
       if (list.dataset.ptbGame === game && list.dataset.ptbCollection === view.collectionId &&
           list.querySelector(".ptb-bm-dragging, .ptb-bm-form, .ptb-title-editor")) return;
       list.dataset.ptbGame = game || "";
       list.dataset.ptbCollection = view.collectionId || "";
-      const q = String(fx.bmQuery || "").trim();
       PTB.renderBookmarkGroups(list, view, {
         game,
         editButton,
@@ -946,8 +1063,9 @@
     return sidebar;
   };
 
-  function setSidebarOpen(open) {
+  function setSidebarOpen(open, showingRecent = state.showingRecent) {
     state.sidebarOpen = open;
+    state.showingRecent = showingRecent;
     const sidebar = ensureSidebar();
     if (sidebar) sidebar.classList.toggle("ptb-open", open);
     try {
@@ -956,7 +1074,11 @@
       // ignore
     }
     const toggle = document.getElementById(SIDEBAR_TOGGLE_ID);
-    if (toggle) toggle.classList.toggle("ptb-active", open);
+    toggle?.classList.toggle("ptb-active", open && !state.showingRecent);
+    toggle?.setAttribute("aria-pressed", String(open && !state.showingRecent));
+    const recent = document.getElementById("ptb-recent-toggle");
+    recent?.classList.toggle("ptb-active", open && state.showingRecent);
+    recent?.setAttribute("aria-pressed", String(open && state.showingRecent));
     if (open) renderSidebarList();
     try {
       chrome.storage.local.set({ [SIDEBAR_OPEN_KEY]: open });
@@ -971,31 +1093,44 @@
     toggle.id = SIDEBAR_TOGGLE_ID;
     toggle.type = "button";
     setIconBtn(toggle, "list", message("sidebarToggle", "List"));
-    toggle.addEventListener("click", () => setSidebarOpen(!state.sidebarOpen));
+    function showMode(recent) {
+      const open = !state.sidebarOpen || state.showingRecent !== recent;
+      setSidebarOpen(open, recent);
+    }
+    toggle.addEventListener("click", () => showMode(false));
     document.body.appendChild(toggle);
+    if (!chrome.extension.inIncognitoContext) {
+      const recent = sbEl("button", "ptb-sidebar-toggle");
+      recent.id = "ptb-recent-toggle";
+      recent.type = "button";
+      recent.setAttribute("aria-pressed", "false");
+      setIconBtn(recent, "history", message("recentHeading"));
+      recent.addEventListener("click", () => showMode(true));
+      document.body.appendChild(recent);
+    }
   };
 
-  function renderPreferredSiteLink() {
-    const code = state.redirectSettings?.code;
-    const destination = code && code !== PTB.hostToRealm(location.hostname)
-      ? PTB.tradeRegion.preferredUrl(location.href, state.redirectSettings) : null;
-    let link = document.getElementById("ptb-preferred-site");
-    if (!destination || !document.body) {
-      link?.remove();
-      return;
-    }
-    if (!link) {
-      link = document.createElement("a");
-      link.id = "ptb-preferred-site";
-      link.className = "ptb-sidebar-toggle";
-      // The trade app can change the search before the next URL poll.
-      for (const event of ["click", "auxclick", "contextmenu"]) link.addEventListener(event, renderPreferredSiteLink);
-      document.body.appendChild(link);
-    }
+  let preferredLinkRequest = 0;
+  async function renderPreferredSiteLink() {
+    const request = ++preferredLinkRequest;
+    const href = location.href;
+    const settings = state.redirectSettings;
+    document.getElementById("ptb-preferred-site")?.remove();
+    if (!settings || !document.body) return;
+    const destination = await chrome.runtime.sendMessage({ cmd: "ptb-preferred-link", href, settings }).catch(() => null);
+    if (!destination || request !== preferredLinkRequest || location.href !== href) return;
+    const link = document.createElement("a");
+    link.id = "ptb-preferred-site";
+    link.className = "ptb-sidebar-toggle";
     link.href = destination;
-    link.textContent = code.toUpperCase();
-    link.title = message("openPreferredTradeSite", "Open on preferred trade site") + " · " + link.textContent;
-    link.setAttribute("aria-label", link.title);
+    setIconBtn(link, "redirect", message("openPreferredTradeSite", "Open with trade preferences"));
+    for (const event of ["click", "auxclick", "contextmenu"]) link.addEventListener(event, e => {
+      if (href !== location.href) {
+        e.preventDefault();
+        renderPreferredSiteLink();
+      }
+    });
+    document.body.appendChild(link);
   }
 
   const initSidebar = () => {
@@ -1008,10 +1143,14 @@
         if (area === "local" && changes.ptbRedirectSettings) {
           state.redirectSettings = changes.ptbRedirectSettings.newValue || null;
           renderPreferredSiteLink();
+        } else if (area === "local" && changes["ptbTradeLeagues-" + currentGame()] &&
+            state.redirectSettings?.profiles?.[currentGame()]?.league === "@latest") {
+          renderPreferredSiteLink();
         }
         if (area === "local" && state.sidebarOpen &&
             (changes.bookmarks || changes.bookmarkFolders || changes.bookmarkRootOrder || changes.bookmarkRecentGroups ||
-             changes.bookmarkCollections || changes.bookmarkActiveCollections || changes.bookmarkDefaultCollections)) {
+            changes.bookmarkCollections || changes.bookmarkActiveCollections || changes.bookmarkDefaultCollections ||
+            state.showingRecent && (changes.ptbRecentPoe1 || changes.ptbRecentPoe2 || changes.ptbRecentEnabled))) {
           renderSidebarList();
         }
       });
@@ -1215,12 +1354,11 @@
     const out = [];
     for (let i = 0; i < rows.length; i += 1) {
       const row = rows[i];
-      if (row.closest && row.closest(".ptb-sidebar")) continue;
+      if (row.closest(".ptb-sidebar") || row.matches(".gone, .error")) continue;
       const box =
         row.querySelector("[data-field='price']") ||
         row.querySelector(".price") ||
         row.querySelector(".details");
-      if (!box) continue;
       out.push({ row: row, box: box, id: row.getAttribute("data-id") });
     }
     return out;
@@ -1228,36 +1366,48 @@
 
   // A reused result row can still belong to the previous URL while the trade app loads.
   const observedRows = new WeakMap();
-  function readListingPrices() {
+  function readListingPrices(includeIcon = false) {
     const listings = [];
     for (const target of listingTargets()) {
       const previous = observedRows.get(target.row);
-      if (previous?.id === target.id && previous.search !== state.href) continue;
-      observedRows.set(target.row, { id: target.id, search: state.href });
-      listings.push({ box: target.box, price: parseListingPrice(target.box) });
+      const sameSearch = previous?.id !== target.id || previous.search === location.pathname;
+      if (sameSearch) observedRows.set(target.row, { id: target.id, search: location.pathname });
+      listings.push({ id: target.id, sameSearch, box: target.box,
+        price: target.box ? parseListingPrice(target.box) : null,
+        iconUrl: includeIcon ? queryOne(target.row, ICON_SELECTORS)?.src : null });
     }
     return listings;
   }
 
-  function observedMinimum(info, listings) {
-    const prices = listings.map(listing => listing.price).filter(price => price.amount > 0 && Number.isFinite(price.amount));
+  function observedMinimum(info, listings, sample) {
+    if (sample?.total === 0) return null;
+    const prices = listings.map(listing => listing.price).filter(price => price?.amount > 0 && Number.isFinite(price.amount));
     if (prices.some(price => !price.currency)) return null;
     const bundle = fx.bundle?.game === info.game && fx.bundle.league === info.league ? fx.bundle : null;
     const best = PTB.rates.lowestListing(prices, bundle);
-    return best && { ...best, at: Date.now() };
+    return best && { ...best, at: sample?.prices?.some(Boolean) ? sample.observedAt : Date.now() };
   }
 
-  let lastObservation = "";
+  let openedBookmark;
+  globalThis.ptbBookmarkVisit?.then(visit => {
+    openedBookmark = visit;
+    if (visit) schedulePaintFx();
+  });
+
   function syncSearchPrice(listings) {
+    const visit = openedBookmark;
+    if (!visit) return;
     const info = parseCurrentUrl();
     if (!info || location.href !== state.href) return;
-    const price = observedMinimum(info, listings);
-    if (!price) return;
-    const key = JSON.stringify([state.href, price.amount, price.currency]);
-    if (key === lastObservation) return;
-    lastObservation = key;
-    PTB.storage.recordSearchPrice(info, price).catch(() => {
-      if (lastObservation === key) lastObservation = "";
+    const sample = currentListingSample(info, listings, false);
+    if (!sample?.firstResult || !sample.known) return;
+    const eligible = listings.flatMap((row, index) => sample.matched[index]
+      ? [{ ...row, price: sample.prices?.[index] ?? row.price }] : []);
+    const price = observedMinimum(info, eligible, sample);
+    if (!price && sample.total !== 0) return;
+    openedBookmark = null;
+    PTB.storage.recordBookmarkPrice(visit.id, visit.href, price, price?.at ?? sample.observedAt).catch(() => {
+      openedBookmark = visit;
     });
   }
   const buildLowPriceRow = (bookmark) => {
@@ -1612,6 +1762,7 @@
     const baseName = currencyLabel(base);
     const baseIcon = currencyIcon(base);
     for (const { box, price: parsed } of listings) {
+      if (!box) continue;
       let amountText = "";
       if (
         Number.isFinite(parsed.amount) &&
@@ -1663,6 +1814,7 @@
     fx.observer = new MutationObserver((muts) => {
       for (let i = 0; i < muts.length; i += 1) {
         const t = muts[i].target;
+        if (muts[i].attributeName === "class" && !t.matches(".row[data-id]")) continue;
         if (t && t.classList && t.classList.contains(FX_CLASS)) continue;
         if (t && t.closest && t.closest("." + FX_CLASS)) continue;
         schedulePaintFx();
@@ -1670,7 +1822,7 @@
       }
     });
     fx.observer.observe(document.body, { childList: true, characterData: true, subtree: true,
-      attributes: true, attributeFilter: ["data-id", "title", "alt"] });
+      attributes: true, attributeFilter: ["data-id", "title", "alt", "class"] });
   };
 
   let ratesRequest = 0;
@@ -1792,6 +1944,14 @@
     } catch (_e) {}
   };
 
+  let reportedTradeReady = false;
+  function reportTradeReady() {
+    if (!reportedTradeReady && !new URL(location.href).searchParams.has("q") &&
+        document.querySelector("#trade .search-bar, #trade .resultset, #trade .exchange")) {
+      reportedTradeReady = true;
+      chrome.runtime.sendMessage({ cmd: "ptb-trade-ready" }).catch(() => {});
+    }
+  }
   const start = () => {
     const cleanUrl = PTB.tradeRegion.stripOverride(location.href);
     if (cleanUrl) history.replaceState(history.state, "", cleanUrl);
@@ -1801,6 +1961,10 @@
         try {
           const toggle = document.getElementById(SIDEBAR_TOGGLE_ID);
           if (toggle) setIconBtn(toggle, "list", message("sidebarToggle", "List"));
+          const recent = document.getElementById("ptb-recent-toggle");
+          if (recent) setIconBtn(recent, "history", message("recentHeading"));
+          const preferred = document.getElementById("ptb-preferred-site");
+          if (preferred) setIconBtn(preferred, "redirect", message("openPreferredTradeSite", "Open with trade preferences"));
           reconcile();
           if (state.sidebar) {
             state.sidebar.querySelector(".ptb-sb-close")?.setAttribute("aria-label", message("close", "Close"));
@@ -1840,6 +2004,9 @@
       } catch (_e) {}
     }
     patchHistory();
+    initRecentCapture();
+    document.addEventListener("ptb-listings-ready", schedulePaintFx);
+    globalThis.navigation?.addEventListener("currententrychange", scheduleReconcile);
     initSidebar();
     initListingFx();
     document.addEventListener("click", () => closeLangMenus());
@@ -1854,6 +2021,7 @@
 
     globalThis.setInterval(() => {
       try {
+        reportTradeReady();
         if (state.href !== (globalThis.location?.href || "") || !state.button) {
           reconcile();
         }

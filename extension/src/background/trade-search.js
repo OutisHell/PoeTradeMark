@@ -84,16 +84,17 @@ PTB.transferQuerySearch = async function (href, to, namesFor = loadTradeNames) {
   return url.href;
 };
 
-function searchRoute(href) {
+function searchRoute(href, includeExchange = false) {
   const url = new URL(href);
   const code = regionOf(url.host);
   if (!code || !PTB.tradeRegion.tradeUrl(href, code)) throw Error("Unsupported trade site");
   const game = PTB.gameFromUrl(href);
   const root = game === "poe2" ? "/trade2" : "/trade";
-  const base = root + (game === "poe2" ? "/search/poe2" : "/search");
   const path = url.pathname.replace(/\/$/, "");
+  const type = includeExchange && (path === root + "/exchange" || path.startsWith(root + "/exchange/")) ? "exchange" : "search";
+  const base = root + "/" + type + (game === "poe2" ? "/poe2" : "");
   const parts = path.startsWith(base + "/") ? path.slice(base.length + 1).split("/") : [];
-  if ((!parts.length && ![root, root + "/search", base].includes(path)) ||
+  if ((!parts.length && ![root, root + "/" + type, base].includes(path)) ||
       parts.length > 3 || (parts.length === 3 && parts[2] !== "live")) throw Error("Unsupported search route");
   return { url, code, game, base, league: PTB.decodePathPart(parts[0]), token: parts[1], live: parts[2] === "live" };
 }
@@ -115,8 +116,31 @@ PTB.tradeSnapshot = async function (href) {
   return { code: route.code, profile: { game: route.game, league: route.league, status } };
 };
 
+PTB.preferredTradeUrl = async function (href, settings, catalogFor = PTB.tradeLeagues) {
+  const code = settings?.code;
+  const game = PTB.gameFromUrl(href);
+  if (!game || !PTB.tradeRegion.tradeUrl(href, code || "en")) return null;
+  const otherSite = code && PTB.hostToRealm(new URL(href).hostname) !== code;
+  const siteLink = otherSite ? PTB.tradeRegion.tradeUrl(href, code, true) : null;
+  const profile = settings?.profiles?.[game];
+  if (!profile?.league && !profile?.status) return siteLink;
+  let route;
+  try { route = searchRoute(href, true); } catch { return siteLink; }
+  const link = chrome.runtime.getURL("src/region/query.html") + "?preferred=" + (code || "source") + "&" + href;
+  if (otherSite || (profile.league && profile.league !== "@latest" && profile.league !== route.league)) return link;
+  if (profile.status) {
+    const data = await searchPayload(route).catch(() => null);
+    if ((data || !route.token) && data?.query.status?.option !== profile.status) return link;
+  }
+  if (profile.league === "@latest") {
+    const catalog = await catalogFor(game);
+    if (catalog.latest && catalog.latest !== route.league) return link;
+  }
+  return null;
+};
+
 PTB.profileTradeUrl = async function (href, to, profile, namesFor = loadTradeNames, catalogFor = PTB.tradeLeagues) {
-  const route = searchRoute(href);
+  const route = searchRoute(href, true);
   const url = to ? new URL(PTB.tradeRegion.tradeUrl(href, to)) : new URL(href);
   let league = profile.league || route.league;
   if (league === "@latest" || !league) {
@@ -162,5 +186,16 @@ PTB.localizeTradeSearch = async function (href, namesFor = loadTradeNames) {
   const token = await packSearch(query);
   url.pathname = url.pathname.replace(match[2], token);
   url.search = url.search.slice(1).split("&").filter((part) => !part.startsWith("ptb_from=")).join("&");
+  return url.href;
+};
+
+PTB.manualTradeDestination = async function (source, code, namesFor = loadTradeNames) {
+  if (PTB.tradeRegion.isQuerySearch(new URL(source))) return PTB.transferQuerySearch(source, code, namesFor);
+  const href = PTB.tradeRegion.tradeUrl(source, code, true);
+  if (!href) throw Error("Unsupported trade site");
+  const translated = await PTB.localizeTradeSearch(href, namesFor);
+  const url = new URL(translated || href);
+  // Do not re-run the translation when the trade page loads.
+  url.search = url.search.slice(1).split("&").filter(part => !part.startsWith("ptb_from=")).join("&");
   return url.href;
 };

@@ -18,6 +18,10 @@ PoE Trade Mark is a Chrome extension for saving Path of Exile and Path of Exile 
 
 ![The English PoE1 trade page and extension together: select Headhunter Leather Belt, run the search, click the bookmark star, and find the saved search in the sidebar.](docs/images/save-headhunter.gif)
 
+## Find a recent search
+
+Click the **clock** at the top of the floating buttons to open recent searches. Click the list button to return to bookmarks. In the extension popup, the clock in the header switches between the two lists. Select **☆** to move its saved filters and observed price into your active collection. Recording is on by default in regular windows. Each game keeps up to 30 searches for seven days on this device, with a 256 KiB limit per game. Use **⋯** in Recent searches to clear one game or turn recording off to erase both histories. Incognito searches are excluded.
+
 ## Organize and share bookmarks
 
 A **collection** is a list you can switch or share, such as the gear searches for one build. A **group** keeps related bookmarks together inside that list.
@@ -51,13 +55,13 @@ You can also open the extension popup to find the same settings.
 | Open incoming links with your usual settings | Choose a trade site, league or trade mode and turn on **Auto-redirect**. Leave any field at **—** to keep the value from the link. League and trade mode are saved per game. |
 | Use the settings from a search you already have open | Run the search, then click **Current page snapshot** to save its site, league and trade mode as your preferences. |
 | Follow the regular challenge league each season | Choose **Current challenge league (softcore)**. The list comes from the official trade site. Click the refresh arrow beside **League** to fetch it again. |
-| Switch sites for just one visit | Use the country-code button on the trade page to apply your preferences manually. To open a bookmark on a specific country’s site for one visit, use the dropdown beside its double arrow. |
+| Apply preferences to this search | When the trade site, league or trade mode differs from a saved preference, click the redirect arrow beside the bookmark controls. For a bookmark, **»** opens your preferred site, or its original site if you haven’t chosen one. The adjacent dropdown selects a site for one visit. Both keep the bookmark’s saved league and trade mode even when auto-redirect is on. |
 
 The extension supports the Korean, global and international-language trade sites. Taiwan bookmarks open on the Taiwan trade site. If a search cannot be converted, you can open the original link.
 
 ## Compare prices
 
-A bookmark shows the lowest asking price among the listings loaded on your latest visit to that search. Reopening the same link updates the price even if it has risen. Different currencies are compared using the league’s exchange rates. Hover over the price to see when it was observed. If no price can be compared yet, the previous observation stays visible.
+Open a bookmark with **Go to search** to refresh its lowest price from the listings loaded for the initial search. Each bookmark keeps its own price, even when several bookmarks share a link. A confirmed empty result clears the price. While results are loading or if the search fails, the previous price stays visible. Prices in different currencies are compared using the league’s exchange rates. Hover over the price to see when it was observed.
 
 In the sidebar, choose a base currency to see listing prices converted with poe.ninja rates. For example, select **Divine Orb** to compare prices listed in different currencies. Open the rate table and use its edit button to save currency pairs you check often.
 
@@ -90,6 +94,10 @@ PoE Trade Mark는 **패스 오브 엑자일 1과 2의 거래소 검색 조건을
 3. 별 바로 위의 **목록 버튼**을 누르면 사이드바에 저장한 검색이 보입니다. **»**를 누르면 같은 조건으로 거래소를 다시 열고, 연필 버튼을 누르면 즐겨찾기 이름을 수정합니다. 크롬의 확장 프로그램 아이콘에서도 목록을 열 수 있습니다.
 
 ![영문 거래소에서 헤드헌터를 검색하고 별을 눌러 저장한 뒤 사이드바에서 확인하는 과정](docs/images/save-headhunter.gif)
+
+### 최근 검색 다시 열기
+
+거래소 오른쪽 아래 버튼 중 맨 위의 **시계**를 누르면 최근 검색 목록이 열립니다. **목록** 버튼을 누르면 즐겨찾기로 돌아갑니다. 확장 프로그램 팝업에서는 상단의 시계로 두 목록을 전환합니다. 항목 옆 **☆**를 누르면 검색 당시의 필터와 확인된 가격이 현재 컬렉션의 즐겨찾기로 옮겨집니다. POE1·POE2 각각 최대 30개를 7일 동안 이 기기에 보관하며, 용량 한도(게임당 256KiB)에 먼저 닿으면 오래된 기록부터 지웁니다. 기록은 기본으로 켜져 있습니다. 최근 검색의 **⋯**에서 게임별 기록을 지우거나 기록을 꺼서 두 게임의 기록을 모두 지울 수 있습니다. 시크릿 창의 검색은 제외합니다.
 
 ### 컬렉션 정리와 공유
 
@@ -125,13 +133,13 @@ PoE Trade Mark는 **패스 오브 엑자일 1과 2의 거래소 검색 조건을
 | 받은 링크를 평소 쓰는 조건으로 열기 | 거래소, 리그, 거래 방식을 선택하고 **자동 이동**을 켭니다. **—**로 둔 항목은 링크의 값을 따릅니다. 리그와 거래 방식은 게임별로 저장됩니다. |
 | 지금 보고 있는 거래소 설정 가져오기 | 원하는 조건으로 검색을 실행한 뒤 **현재 페이지 스냅샷**을 누릅니다. 해당 페이지의 거래소, 리그, 거래 방식이 선호 설정에 들어갑니다. |
 | 시즌마다 최신 일반 리그 사용하기 | 리그에서 **최신 일반 시즌**을 선택합니다. 공식 거래소에서 리그 목록을 받아오며, 리그 옆 새로고침 버튼을 눌러 목록을 갱신할 수 있습니다. |
-| 이번 검색만 다른 거래소에서 열기 | 거래소 페이지의 국가 코드 버튼을 누르면 현재 검색에 선호 설정을 적용합니다. 저장한 검색을 특정 국가의 거래소에서 한 번 열려면 즐겨찾기의 **»** 옆 드롭다운에서 국가를 고릅니다. |
+| 현재 검색에 선호 설정 적용하기 | 거래소·리그·거래 방식 중 설정한 값이 현재 검색과 다르면 즐겨찾기 버튼 옆에 리다이렉트 화살표가 나타납니다. 화살표를 눌러 선호 설정으로 이동합니다. 즐겨찾기의 **»**는 선호 거래소를 열며, 미설정 시 원래 거래소를 엽니다. 옆 드롭다운에서 이번에 열 거래소를 직접 고를 수 있습니다. 두 버튼 모두 자동 이동이 켜져 있어도 저장된 리그와 거래 방식을 유지합니다. |
 
 한국, 글로벌 및 여러 언어의 거래소를 지원합니다. 대만 거래소에서 저장한 즐겨찾기는 대만 거래소에서 열립니다. 검색 조건을 변환할 수 없는 경우 원본 링크를 열 수 있습니다.
 
 ### 가격 비교
 
-즐겨찾기에는 해당 검색을 마지막으로 방문했을 때 불러온 매물 중 최저가가 표시됩니다. 같은 링크를 다시 열면 가격이 올랐을 때도 갱신됩니다. 서로 다른 화폐는 해당 리그의 환율로 비교합니다. 가격 위에 마우스를 올리면 확인 시각이 보입니다. 아직 비교할 가격이 없으면 이전 관측값을 표시합니다.
+즐겨찾기의 **바로가기**로 검색을 열면 첫 검색 결과에서 불러온 매물의 최저가가 해당 항목에 표시됩니다. 같은 링크를 여러 번 저장해도 가격은 항목별로 관리됩니다. 매물이 0개로 확인되면 가격 칸이 비고, 로딩 중이거나 검색에 실패하면 기존 가격이 유지됩니다. 서로 다른 화폐는 해당 리그의 환율로 비교합니다. 가격 위에 마우스를 올리면 확인 시각이 보입니다.
 
 사이드바에서 기준 화폐를 고르면 poe.ninja 시세로 환산한 가격을 볼 수 있습니다. 예를 들어 **신성한 오브**를 선택하면 서로 다른 화폐로 올라온 매물을 같은 단위로 비교할 수 있습니다. 환율표의 편집 버튼으로 자주 확인하는 화폐 쌍을 저장할 수 있습니다.
 

@@ -17,6 +17,34 @@ test("a snapshot stores only the source region, game's league and trade status",
   await assert.rejects(PTB.tradeSnapshot(origin + "/trade/search/Old/abc"));
 });
 
+test("bookmark jumps use the preferred site but bypass automatic league and trade mode settings", async () => {
+  const bookmark = { ...PTB.parseTradeUrl(source.replace("/live", "")), id: "saved" };
+  const original = PTB.buildTradeUrl(bookmark);
+  const script = require("node:fs").readFileSync(require.resolve("../extension/src/region/query.js"), "utf8");
+  for (const [code, enabled, expectedHost] of [
+    ["kr", true, "poe.kakaogames.com"], ["de", false, "de.pathofexile.com"], ["", true, bookmark.host],
+  ]) {
+    let visit, guard, destination;
+    const chrome = {
+      runtime: { sendMessage: async () => ({ settings: { code, enabled, profiles: { poe1: { league: "Standard", status: "any" } } } }) },
+      tabs: { getCurrent: async () => ({ id: 17 }) },
+      storage: { local: { get: async () => ({ bookmarks: [bookmark] }) },
+        session: { set: async values => { visit = values["ptbVisit:17"]; } } },
+      declarativeNetRequest: { updateSessionRules: async rules => { [guard] = rules.addRules; } },
+    };
+    const location = { search: "?bookmark=saved", replace: href => { destination = new URL(href); } };
+    await require("node:vm").runInNewContext(script, { location, chrome, PTB, URL, URLSearchParams, crypto });
+    assert.equal(destination.host, expectedHost);
+    assert.equal(destination.pathname, new URL(original).pathname);
+    assert.equal(destination.hash, "#ptb-visit=" + visit.token);
+    destination.hash = "";
+    assert.equal(visit.destination, destination.href);
+    assert.equal(visit.href, original);
+    assert.ok(new RegExp(guard.condition.regexFilter).test(destination.href));
+    assert.deepEqual([...guard.condition.tabIds], [17]);
+  }
+});
+
 test("the preferred-site link applies the saved search profile even with automatic redirection off", async () => {
   const settings = { code: "kr", enabled: false, profiles: { poe1: { league: "Standard", status: "any" } } };
   const chrome = { runtime: {
@@ -24,7 +52,7 @@ test("the preferred-site link applies the saved search profile even with automat
     sendMessage: async () => ({ settings }),
   } };
   global.chrome = chrome;
-  const href = PTB.tradeRegion.preferredUrl(source, settings);
+  const href = await PTB.preferredTradeUrl(source, settings);
   const location = new URL(href);
   let destination;
   location.replace = (value) => { destination = new URL(value); };
@@ -34,6 +62,28 @@ test("the preferred-site link applies the saved search profile even with automat
   assert.match(destination.pathname, /^\/trade\/search\/Standard\/[^/]+\/live$/);
   const query = JSON.parse(gunzipSync(Buffer.from(destination.pathname.split("/").at(-2), "base64url")));
   assert.deepEqual(query, { ...data.query, status: { option: "any" } });
+});
+
+test("the manual preference link compares only configured fields for the current game", async () => {
+  global.chrome = { runtime: { getURL: path => "chrome-extension://test/" + path } };
+  const link = (profile, code = "", href = source, catalog = leagues) =>
+    PTB.preferredTradeUrl(href, { code, profiles: { poe1: profile } }, catalog);
+  assert.equal(await link({}), null);
+  assert.equal(await link({ league: "Old", status: "securable" }, "en"), null);
+  assert.match(await link({ league: "Standard" }), /\?preferred=source&/);
+  assert.match(await link({ status: "any" }, "en"), /\?preferred=en&/);
+  assert.match(await link({}, "kr"), /poe\.kakaogames\.com/);
+  const json = origin + "/trade/search/Old?q=" + encodeURIComponent(JSON.stringify(data));
+  assert.equal(await link({ status: "securable" }, "", json), null);
+  assert.match(await link({ status: "online" }, "", json), /\?preferred=source&/);
+  assert.equal(await link({ league: "@latest" }, "", source, async () => ({ latest: "Old" })), null);
+  assert.match(await link({ league: "@latest" }), /\?preferred=source&/);
+  assert.equal(await link({ status: "any" }, "", origin + "/trade/search/Old/opaque"), null);
+  assert.equal(await link({ league: "Standard" }, "", origin + "/trade2/search/poe2/Old/" + token), null);
+  const exchange = origin + "/trade/exchange/Old/" + token;
+  assert.match(await link({ league: "Standard" }, "", exchange), /\?preferred=source&/);
+  const moved = new URL(await PTB.profileTradeUrl(exchange, "", { league: "Standard" }));
+  assert.equal(moved.pathname, "/trade/exchange/Standard/" + token);
 });
 
 test("profile redirects preserve filters, sort, live mode, hash and independent game routes", async () => {

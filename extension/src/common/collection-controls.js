@@ -39,7 +39,8 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
   function showControls() {
     const add = button("collectionAdd", "add", () => edit(false), "+");
     if (!activeId) {
-      container.replaceChildren(add, button("collectionImport", "import", chooseFile));
+      container.replaceChildren(add, button("collectionImport", "import", chooseFile),
+        button("collectionPasteCode", "paste-code", () => codeForm()));
       return;
     }
     const more = button("collectionMore", "more", null, "⋯");
@@ -62,11 +63,13 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
     }
     const items = [
       item("collectionRename", "rename", () => edit(true)),
+      item("collectionCopyCode", "copy-code", copyCode),
+      item("collectionPasteCode", "paste-code", () => codeForm()),
       item("collectionImport", "import", chooseFile),
       item("collectionExport", "export", () => save(() => PTB.backup.download(game, activeId, activeName), labels.exportError)),
       item("collectionRemove", "remove", confirmRemove),
     ];
-    menu.append(items[0], items[1], items[2], document.createElement("hr"), items[3]);
+    menu.append(...items.slice(0, -1), document.createElement("hr"), items.at(-1));
     let initial = 0;
     more.addEventListener("keydown", (event) => {
       if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -150,6 +153,79 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
     }
   }
   let fileRequest = 0;
+  function checkScope(data, filename) {
+    if (data.scope !== "all" && data.scope !== game) {
+      notice(labels.importOnGame(data.scope === "poe1" ? "PoE 1" : "PoE 2"), "alert");
+      return;
+    }
+    reviewImport(PTB.backup.selectScope(data, game), filename);
+  }
+  async function copyCode() {
+    const request = ++fileRequest;
+    try {
+      const code = await PTB.backup.shareCode(game, activeId);
+      if (request !== fileRequest || container.dataset.ptbState !== state) return;
+      try {
+        await navigator.clipboard.writeText(code);
+        if (request === fileRequest && container.dataset.ptbState === state) {
+          notice(t("shareCopied").replace("{n}", code.length.toLocaleString()) +
+            (code.length > 2000 ? " " + t("shareLong") : ""), "status");
+        }
+      } catch {
+        if (request === fileRequest && container.dataset.ptbState === state) codeForm(code);
+      }
+    } catch (error) {
+      if (request === fileRequest && container.dataset.ptbState === state) {
+        notice(error instanceof RangeError ? t("shareLarge") : labels.exportError, "alert");
+      }
+    }
+  }
+  // Pasting in an input works in the popup and sidebar without clipboard-read access.
+  function codeForm(copy = "") {
+    ++fileRequest;
+    const form = document.createElement("form");
+    form.className = "ptb-collection-form ptb-collection-review";
+    const field = document.createElement("textarea");
+    field.rows = 2;
+    field.spellcheck = false;
+    field.autocomplete = "off";
+    field.readOnly = Boolean(copy);
+    field.required = true;
+    field.value = copy;
+    const label = t(copy ? "shareManual" : "collectionPasteCode");
+    field.placeholder = label;
+    field.setAttribute("aria-label", label);
+    const cancelButton = button("collectionCancel", "cancel", cancel);
+    form.append(field);
+    if (!copy) {
+      const apply = button("collectionImport", "apply", null, labels.apply);
+      apply.type = "submit";
+      form.append(apply);
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (apply.disabled) return;
+        apply.disabled = true;
+        field.readOnly = true;
+        try {
+          const data = await PTB.backup.readCode(field.value);
+          if (form.isConnected) checkScope(data, "");
+        } catch (error) {
+          if (form.isConnected) notice(t(error instanceof RangeError ? "shareLarge" : "shareBad"), "alert");
+        } finally {
+          apply.disabled = false;
+          field.readOnly = false;
+        }
+      });
+    }
+    form.append(cancelButton);
+    form.addEventListener("keydown", onEscape);
+    container.replaceChildren(form);
+    field.focus();
+    if (copy) {
+      field.select();
+      notice(t("shareManual") + (copy.length > 2000 ? " " + t("shareLong") : ""), "status");
+    }
+  }
   function chooseFile() {
     const request = ++fileRequest;
     const picker = document.createElement("input");
@@ -161,15 +237,10 @@ PTB.renderCollectionControls = function (container, game, view, refresh) {
       if (!file) return;
       try {
         const fileData = PTB.backup.validate(JSON.parse(await file.text()));
-        if (request !== fileRequest || !select.isConnected) return;
-        if (fileData.scope !== "all" && fileData.scope !== game) {
-          notice(labels.importOnGame(fileData.scope === "poe1" ? "PoE 1" : "PoE 2"), "alert");
-          return;
-        }
-        const data = PTB.backup.selectScope(fileData, game);
-        reviewImport(data, file.name);
+        if (request !== fileRequest || container.dataset.ptbState !== state) return;
+        checkScope(fileData, file.name);
       } catch {
-        if (request === fileRequest && select.isConnected) notice(labels.bad, "alert");
+        if (request === fileRequest && container.dataset.ptbState === state) notice(labels.bad, "alert");
       }
     }, { once: true });
     picker.click();

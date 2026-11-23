@@ -100,7 +100,7 @@
   border-radius: 5px;
   background: var(--ptb-well);
 }
-.ptb-bm-caret, .ptb-bm-filter-details > summary { color: var(--ptb-bm-accent); }
+.ptb-bm-caret, .ptb-bm-filter-toggle { color: var(--ptb-bm-accent); }
 .ptb-bm-items { border-color: var(--ptb-accent-edge); }
 .ptb-bm-empty, .ptb-popup :is(.empty-state, .bookmark-game-title) { color: var(--ptb-muted); }
 .ptb-bm-empty { padding: 14px 8px; }
@@ -134,7 +134,7 @@
   color: var(--ptb-bm-accent);
   font-variant-numeric: tabular-nums;
 }
-:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-realm, .realm-badge, .ptb-sb-league, .league-badge) {
+:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-league, .league-badge) {
   box-sizing: border-box;
   min-height: 0;
   padding: 1px 6px;
@@ -144,10 +144,6 @@
   background: var(--ptb-well);
   font-size: 11px;
   line-height: 15px;
-}
-:is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-realm, .realm-badge) {
-  color: #b5ccdd;
-  font-weight: 650;
 }
 :is(.ptb-sidebar, .ptb-popup) :is(.ptb-sb-league, .league-badge) {
   flex-shrink: 1;

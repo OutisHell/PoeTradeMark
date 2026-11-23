@@ -13,7 +13,7 @@ test("saving reads already received listings for this search without issuing ano
   const responses = [
     { id: "current", total: 2, result: ["a", "b"] },
     { result: [{ id: "a", item: { baseType: "Leather Belt", name: "Headhunter", frameType: 3 },
-      listing: { account: "private" } }] },
+      listing: { account: "private", price: { amount: 73, currency: "divine" } } }] },
     { result: [{ id: "c", item: { baseType: "Bow", frameType: 2 } }] },
   ];
   let originalPromise;
@@ -37,12 +37,95 @@ test("saving reads already received listings for this search without issuing ano
   }
   await new Promise(resolve => setImmediate(resolve));
   const target = new Template();
-  target.dataset.request = JSON.stringify({ game: "trade", query: "current", ids: ["a", "b", "c"] });
+  target.dataset.request = JSON.stringify({ game: "trade", league: "Standard", query: "current", ids: ["a", "b", "c"] });
   onRead({ target });
-  assert.deepEqual(JSON.parse(target.dataset.sample), {
-    query: "current", total: 2, rows: ["unique", null, null],
+  const { observedAt, ...sample } = JSON.parse(target.dataset.sample);
+  assert.ok(Number.isFinite(observedAt));
+  assert.deepEqual(sample, {
+    query: "current", firstResult: true, total: 2, rows: ["unique", null, null], matched: [true, true, false], known: true, decoding: false,
+    prices: [{ amount: 73, currency: "divine" }, null, null],
   });
   assert.equal(requests.length, 3);
+});
+
+test("an initial result fetch under an opaque API ID belongs to the revisited compressed URL until a new search starts", async () => {
+  const token = "H4sIAAAAAAAACm3MQQrDIBRF0b28sRSNqSVupYRi4w8Ikoh-ocW695J2mvHl3IbCjmuBbdgTh32DRaGlZveMhC5-vcDeG_idCBZu8xBYQ2TK_xA8LOiVYlgCXw7wGEYjr9JILT9K69sIAR_K8fSwnCt1ceqUmqTW2gzTiVtdLNTnPvcvEjf4crcAAAA";
+  const location = new URL("https://poe.kakaogames.com/trade/search/Covens/" + token);
+  let read;
+  class Template { dataset = {}; }
+  class Xhr {
+    open() {} send() {}
+    addEventListener(type, fn) { this.finish = fn; }
+    respond(json) { this.status = 200; this.responseType = "json"; this.response = json; this.finish(); }
+  }
+  vm.runInNewContext(fs.readFileSync(require.resolve("../extension/src/content/listing-sample.js"), "utf8"), {
+    location, URL, Event, window: {}, XMLHttpRequest: Xhr, HTMLTemplateElement: Template,
+    document: { addEventListener: (_, fn) => { read = fn; }, dispatchEvent() {} },
+  });
+  const result = async (batch, id) => {
+    const xhr = new Xhr();
+    xhr.open("GET", "/api/trade/fetch/" + id + "?query=" + batch);
+    xhr.send();
+    xhr.respond({ result: [{ id, item: {}, listing: { price: { amount: 73, currency: "divine" } } }] });
+    const target = new Template();
+    target.dataset.request = JSON.stringify({ game: "trade", league: "Covens", query: token, ids: [id] });
+    read({ target });
+    return PTB.matchListingSample(JSON.parse(target.dataset.sample), token, await PTB.unpackTradeQuery(token));
+  };
+  assert.deepEqual((await result("opaque", "first"))?.prices, [{ amount: 73, currency: "divine" }]);
+  const next = new Xhr();
+  next.open("POST", "/api/trade/search/Covens");
+  next.send();
+  assert.equal(await result("different", "second"), null);
+});
+
+test("consecutive searches bind submitted filters and result IDs to the response, including out-of-order XHRs", () => {
+  const listeners = {};
+  let label = "Helmet stat";
+  class Template {
+    dataset = {};
+    dispatchEvent() { this.dataset.labels = JSON.stringify({ labels: {}, statNames: [label] }); }
+    remove() {}
+  }
+  class Xhr {
+    open() {}
+    send() {}
+    addEventListener(_, callback) { this.finish = callback; }
+    respond(id, result) {
+      this.status = 200;
+      this.responseType = "json";
+      this.response = { id, result, total: result.length };
+      this.finish();
+    }
+  }
+  vm.runInNewContext(fs.readFileSync(require.resolve("../extension/src/content/listing-sample.js"), "utf8"), {
+    window: {}, location: new URL("https://poe.kakaogames.com/trade/search/Covens/first"), URL, Event,
+    document: { addEventListener: (name, cb) => { listeners[name] = cb; },
+      createElement: () => new Template(), documentElement: { appendChild() {} } },
+    XMLHttpRequest: Xhr, HTMLTemplateElement: Template,
+  });
+  const search = (type, stat) => {
+    const xhr = new Xhr();
+    xhr.open("POST", "/api/trade/search/Covens");
+    xhr.send(JSON.stringify({ query: { type, stats: [{ type: "and", filters: [{ id: stat }] }] } }));
+    return xhr;
+  };
+  const first = search("Helmet", "stat.a");
+  label = "Belt stat";
+  const second = search("Belt", "stat.b");
+  second.respond("second", ["belt", "shared"]);
+  first.respond("first", ["helmet", "shared"]);
+  const target = new Template();
+  target.dataset.request = JSON.stringify({ game: "trade", league: "Covens", query: "second",
+    details: true, ids: ["helmet", "belt", "shared"] });
+  listeners["ptb-read-listing-sample"]({ target });
+  const sample = JSON.parse(target.dataset.sample);
+  assert.deepEqual(sample.matched, [false, true, true]);
+  assert.equal(sample.firstResult, false);
+  assert.equal(sample.submitted.query.type, "Belt");
+  const draft = { filters: [], statNames: ["Edited after search"], labels: sample.submitted.labels };
+  assert.deepEqual(PTB.bookmarkSummary(sample.submitted.query, draft).filters, ["Belt stat"]);
+  assert.deepEqual(PTB.bookmarkSummary(sample.submitted.query, { ...draft, labels: {} }).filters, ["stat.b"]);
 });
 
 test("only a named search or a single selected rarity colors a new bookmark", () => {
@@ -72,6 +155,19 @@ test("category titles and chips use the executed category's localized trade labe
   assert.deepEqual(PTB.bookmarkSummary({ ...query, name: "별의 탄생" }, form, labels).filters, ["양손 근접 무기"]);
   assert.equal(PTB.bookmarkSummary(null, form).title, "활");
   assert.doesNotMatch(PTB.bookmarkSummary(query, form).title, /weapon|twomelee|활/);
+});
+
+test("the shared Covens link explicitly selects helmets without naming an item", async () => {
+  const token = "H4sIAAAAAAAACo2R3W7DIAyF38XXqMq09WK8yjQhNziJJX4iMG2jiHefslRVuqrRuAGOOf4OMEMWlJJBzxBH4RhAQ6a2JDw5gqp-6xn01wwyjQQaMFhQ0LETSmuBLWgYMxUbD-tkJAo647gjUHBGV2gheA6g396bWtWOK1HmLBjaZ-_nS2so_kTJxM6QH2UyY6KOr8ZHm58T7PPbAWPepqjfy_nb9S_E_SD_fQFLV6HEMsEukoOQc9zTivsb-NjURbwT1zBms98sWxTqY5oevhSTjyUdBnKeBGqt6ia9aILpDv84NlUBnR-EZfwAqg_1bzwCAAA";
+  const query = await PTB.unpackTradeQuery(token);
+  const summary = PTB.bookmarkSummary(query, { title: "이전 검색", filters: [] }, PTB.tradeCategoryLabels.poe1.kr);
+  assert.equal(query.filters.type_filters.filters.category.option, "armour.helmet");
+  assert.equal(summary.title, "투구");
+  assert.equal(summary.itemName, "");
+  assert.ok(summary.filters.some(label => label.includes("130")));
+  const fromApi = { query: "opaque", submitted: { query } };
+  assert.equal(await PTB.matchListingSample(fromApi, token, query), fromApi);
+  assert.equal(await PTB.matchListingSample(fromApi, token, { type: "Belt" }), null);
 });
 
 test("a completed query names the bookmark even with a blank or edited trade form", () => {
@@ -117,6 +213,8 @@ test("use loaded results for rarity only, keeping the explicit name or filter ti
   assert.equal(make([belt,belt,belt], {type:"Leather Belt"}).title, "Leather Belt");
   assert.equal(make([belt,belt,belt]).rarity, "unique");
   assert.equal(make([rare,rare,rare]).rarity, "rare");
+  assert.equal(PTB.bookmarkSummary({}, { filters: [] }, null,
+    { rows: [null, rare, rare], matched: [false, true, true], total: 2 }).rarity, "rare");
   assert.equal(make([rare,rare,rare]).title, "(Untitled)");
   assert.equal(make([belt,rare,belt,rare]).title, "(Untitled)");
   assert.equal(make([belt,belt,null]).rarity, undefined);
@@ -136,7 +234,7 @@ test("the shared Korean stat search recognizes the equivalent ID returned by tra
   const received = { query: responseId, rows: Array(10).fill("unique"), total: 530 };
   const query = await PTB.unpackTradeQuery(linkId);
   const sample = await PTB.matchListingSample(received, linkId, query);
-  const summary = PTB.bookmarkSummary(query, { filters: [], statNames: ["Stat filter"] }, {}, sample);
+  const summary = PTB.bookmarkSummary(query, { filters: [], labels: { [query.stats[0].filters[0].id]: "Stat filter" } }, {}, sample);
   assert.equal(summary.rarity, "unique");
   assert.equal(summary.title, "Stat filter");
   assert.equal(summary.itemName, "");

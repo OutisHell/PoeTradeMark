@@ -19,19 +19,32 @@ beforeEach(() => {
   };
 });
 
-test("a revisit replaces prices in both directions across matching collections only", async () => {
-  const search = { game: "poe1", host: "www.pathofexile.com", type: "search", league: "Standard", searchId: "abc" };
-  await PTB.storage.add({ ...search, title: "First" });
+test("opening a bookmark updates only that item, and a confirmed empty search clears its price", async () => {
+  const search = PTB.parseTradeUrl("https://poe.kakaogames.com/trade/search/Covens/same");
+  const href = PTB.buildTradeUrl(search);
+  const price = (amount, at) => ({ amount, currency: "divine", at });
+  const original = await PTB.storage.add({ ...search, title: "First", lowPrice: price(65, 1) });
   await PTB.collections.add("poe1", "Build");
-  await PTB.storage.add({ ...search, title: "Copy" });
-  await PTB.storage.add({ ...search, league: "Hardcore", title: "Other" });
-  for (const [at, amount] of [[10, 3], [11, 7], [12, 2], [9, 1]]) {
-    await PTB.storage.recordSearchPrice(search, { amount, currency: "divine", at });
-  }
-  const { bookmarks } = await chrome.storage.local.get(["bookmarks"]);
-  for (const m of bookmarks.filter(m => m.searchId === "abc")) {
-    assert.equal(m.lowPrice?.amount, m.league === "Standard" ? 2 : undefined);
-  }
+  const copy = await PTB.storage.add({ ...search, title: "Copy" });
+  assert.equal(copy.lowPrice, undefined);
+  const prices = async () => (await chrome.storage.local.get(["bookmarks"])).bookmarks
+    .filter(mark => mark.searchId === "same").map(mark => mark.lowPrice);
+  await PTB.storage.recordBookmarkPrice(copy.id, href, price(72, 2));
+  assert.deepEqual(await prices(), [price(72, 2), price(65, 1)]);
+  await PTB.storage.recordBookmarkPrice(copy.id, href, null, 4);
+  await PTB.storage.recordBookmarkPrice(copy.id, href, price(30, 3));
+  await PTB.storage.recordBookmarkPrice(original.id, href + "different", null, 5);
+  assert.deepEqual(await prices(), [null, price(65, 1)]);
+  await PTB.storage.recordBookmarkPrice(copy.id, href, price(76, 6));
+  assert.deepEqual(await prices(), [price(76, 6), price(65, 1)]);
+});
+
+test("deleting a bookmark prunes stale stored order IDs without changing the other game", async () => {
+  const mark = await PTB.storage.add({ game: "poe1", title: "Disposable" });
+  await chrome.storage.local.set({ bookmarkRootOrder: { poe1: ["gone", mark.id, "old"], poe2: ["two"] } });
+  await PTB.storage.remove(mark.id);
+  assert.deepEqual((await chrome.storage.local.get(["bookmarkRootOrder"])).bookmarkRootOrder,
+    { poe1: ["old"], poe2: ["two"] });
 });
 
 test("selects new collections and displays each game's active collection away from trade", async () => {

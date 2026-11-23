@@ -107,14 +107,15 @@
     ];
   }
 
-  function preferredUrl(href, settings) {
-    if (!settings?.code || !tradeUrl(href, settings.code)) return null;
-    const game = PTB.gameFromUrl(href);
-    const profile = settings.profiles?.[game];
-    if ((profile?.league || profile?.status) && new RegExp("^" + profilePaths[game] + "$").test(new URL(href).pathname)) {
-      return queryTransferPage() + "?preferred=" + settings.code + "&" + href;
-    }
-    return tradeUrl(href, settings.code, true);
+  function manualRule(tabId, href) {
+    const url = new URL(href);
+    if (!Number.isInteger(tabId) || tabId < 0 || !allowed(url)) throw Error("Invalid manual destination");
+    const root = PTB.gameFromUrl(href) === "poe2" ? "trade2" : "trade";
+    return {
+      id: tabId + 1, priority: 5, action: { type: "allow" },
+      condition: { tabIds: [tabId], resourceTypes: ["main_frame"],
+        regexFilter: "^https://" + url.host.replace(/\./g, "\\.") + "/" + root + "(?:[/?#]|$)" },
+    };
   }
 
   async function getPreference() {
@@ -156,7 +157,8 @@
       menu.replaceChildren();
       for (const [code, [, name]] of Object.entries(regions)) {
         const link = document.createElement("a");
-        link.href = tradeUrl(href, code, true);
+        // Resolve the destination before the tab encounters a login or challenge page.
+        link.href = queryTransferPage() + "?manual=" + code + "&" + href;
         link.textContent = name;
         link.addEventListener("click", (event) => {
           menu.hidePopover();
@@ -178,7 +180,7 @@
     wrap.append(jump, trigger, menu);
     return wrap;
   }
-  PTB.tradeRegion = { regions, statuses, tradeUrl, preferredUrl, rules, stripOverride, splitButton, getPreference, isQuerySearch,
+  PTB.tradeRegion = { regions, statuses, tradeUrl, rules, stripOverride, splitButton, getPreference, isQuerySearch, manualRule,
     setPreference(code, profiles) {
       return chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [redirectId, overrideId, sourceId, queryId, ...Object.values(profileIds)], addRules: rules(code, profiles) });
     },

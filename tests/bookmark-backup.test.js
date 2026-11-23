@@ -15,7 +15,8 @@ function library(initial) {
     async get(keys) { return Object.fromEntries(keys.map((k) => [k, structuredClone(state[k])])); },
     async set(patch) { Object.assign(state, structuredClone(patch)); },
   };
-  const ctx = vm.createContext({ chrome: { storage: { local }, runtime }, URL, crypto: require("node:crypto").webcrypto, TextEncoder });
+  const ctx = vm.createContext({ chrome: { storage: { local }, runtime }, URL, crypto: require("node:crypto").webcrypto,
+    TextEncoder, TextDecoder, Blob, Response, CompressionStream, DecompressionStream, atob, btoa });
   function load(relative) {
     vm.runInContext(readFileSync(join(__dirname, "../extension/src", relative), "utf8"), ctx);
   }
@@ -30,6 +31,34 @@ const original = {
   bookmarkFolders: [{ id: "group", game: "poe2", name: "Maps", collapsed: true }],
   bookmarkRootOrder: { poe1: ["one"], poe2: ["group"] },
 };
+
+test("clipboard share round-trips one collection, Unicode, groups and search tokens through normal import", async () => {
+  const db = library({ ...original, bookmarkDefaultCollections: { poe2: "장비 🎒" } });
+  const data = await db.backup.snapshot("poe2", "default");
+  const code = await db.backup.shareCode("poe2", "default");
+  assert.match(code, /^PTM1\.[A-Za-z0-9_-]+$/);
+  const received = await db.backup.readCode("  " + code + "\n");
+  assert.deepEqual(structuredClone(received), structuredClone(data));
+  const target = library({});
+  await assert.rejects(target.backup.importFile(received, "new", "poe1", { name: "Wrong game" }));
+  await target.backup.importFile(received, "new", "poe2", { name: "장비 🎒" });
+  assert.equal(target.state.bookmarks[0].searchId, "ABCD1");
+  assert.equal(target.state.bookmarks[0].folderId, target.state.bookmarkFolders[0].id);
+  assert.equal(target.state.bookmarkCollections[0].name, "장비 🎒");
+});
+
+test("invalid, oversized, truncated and unscoped share codes never reach import", async () => {
+  const db = library(original);
+  const code = await db.backup.shareCode("poe1", "default");
+  const wrap = bytes => "PTM1." + require("node:zlib").gzipSync(bytes).toString("base64url");
+  for (const invalid of ["", code.replace("PTM1", "PTM2"), code.slice(0, -5), wrap("{}"),
+    wrap(JSON.stringify(await db.backup.snapshot())), wrap(Buffer.from([0x80])),
+    "PTM1." + "a".repeat(1024 * 1024), wrap(" ".repeat(8 * 1024 * 1024 + 1))]) {
+    await assert.rejects(db.backup.readCode(invalid));
+  }
+  await assert.rejects(db.backup.shareCode("all", "default"));
+  await assert.rejects(db.backup.shareCode("poe1", null));
+});
 test("collection JSON preserves new rarity and leaves legacy and unknown values uncolored", async () => {
   const db = library({ bookmarks: [mark("new", "poe1", { rarity: "unique", titleColor: "#36a8fa" }), mark("old", "poe1"),
     mark("bad", "poe1", { rarity: "constructor", titleColor: "transparent" })] });

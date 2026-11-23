@@ -1,6 +1,12 @@
 // Capture the incoming payload before the trade app or the sidebar updates the URL.
 (() => {
   const initial = new URL(location.href);
+  if (initial.hash.startsWith("#ptb-visit=")) {
+    const token = initial.hash.slice("#ptb-visit=".length);
+    initial.hash = "";
+    history.replaceState(history.state, "", initial.href);
+    globalThis.ptbBookmarkVisit = chrome.runtime.sendMessage({ cmd: "ptb-claim-visit", token, href: initial.href }).catch(() => null);
+  }
   if (!initial.searchParams.has("ptb_from") || !/\/H4sI[^/]+(?:\/live)?\/?$/.test(initial.pathname)) return;
   chrome.runtime.sendMessage({ cmd: "ptb-localize-search", href: initial.href }).then(async (result) => {
     if (!result) return;

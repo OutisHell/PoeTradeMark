@@ -78,32 +78,67 @@ PTB.observedPriceLabel = function (price) {
   return price.at > 0 ? label + " · " + new Date(price.at).toLocaleString() : label;
 };
 
-PTB.appendBookmarkFilters = function (card, filters, listClass, chipClass) {
+PTB.appendBookmarkFilters = function (card, filters, listClass, chipClass, filterParts) {
   const labels = Array.isArray(filters) ? filters.filter(text => typeof text === "string" && text.trim()) : [];
   if (!labels.length) return;
   const section = document.createElement("div");
   section.className = "ptb-bm-filter-row";
   const list = document.createElement("div");
   list.className = listClass;
-  const chips = labels.map(text => {
+  function appendStat(parent, stat) {
+    if (stat.badge) {
+      const badge = document.createElement("span");
+      badge.className = "ptb-stat-badge";
+      badge.dataset.type = stat.badge.type;
+      badge.textContent = stat.badge.label;
+      parent.append(badge, " ");
+    }
+    parent.append(stat.text);
+  }
+  const chips = labels.map((text, index) => {
+    const stat = filterParts?.[index];
+    if (stat?.entries) {
+      const group = document.createElement("details");
+      group.className = "ptb-stat-group";
+      const heading = document.createElement("summary");
+      heading.className = chipClass;
+      heading.textContent = stat.label;
+      const options = document.createElement("ul");
+      for (const entry of stat.entries) {
+        const option = document.createElement("li");
+        appendStat(option, entry);
+        options.append(option);
+      }
+      group.append(heading, options);
+      return group;
+    }
     const chip = document.createElement("span");
     chip.className = chipClass;
-    chip.textContent = text;
+    if (stat) {
+      chip.classList.add("ptb-stat-chip");
+      appendStat(chip, stat);
+    } else chip.textContent = text;
     return chip;
   });
   list.append(...chips.slice(0, 2));
   section.appendChild(list);
   card.appendChild(section);
   if (chips.length <= 2) return;
-  const details = document.createElement("details");
-  details.className = "ptb-bm-filter-details";
-  const toggle = document.createElement("summary");
-  toggle.textContent = PTB.i18n.t("filterMore", "{n} more filters").replace("{n}", chips.length - 2);
-  const more = document.createElement("div");
-  more.className = listClass;
-  more.append(...chips.slice(2));
-  details.append(toggle, more);
-  section.appendChild(details);
+  const extra = chips.slice(2);
+  const showMore = PTB.i18n.t("filterMore", "{n} more filters").replace("{n}", extra.length);
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "ptb-bm-filter-toggle";
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.textContent = showMore;
+  toggle.addEventListener("click", () => {
+    const expand = toggle.getAttribute("aria-expanded") === "false";
+    if (expand) list.append(...extra);
+    else extra.forEach(chip => chip.remove());
+    toggle.setAttribute("aria-expanded", String(expand));
+    toggle.textContent = expand ? PTB.i18n.t("collapse", "Collapse ▴") : showMore;
+  });
+  section.appendChild(toggle);
 };
 
 PTB.renderBookmarkGroups = function (list, view, options) {

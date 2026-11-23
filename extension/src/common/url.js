@@ -85,6 +85,10 @@ PTB.buildTradeUrl = function ({ host, game, type, league, searchId }) {
   return `https://${host}/${path}/${leagueSeg}/${searchId}`;
 };
 
+// Open through the extension so the destination tab knows which single bookmark was clicked.
+PTB.bookmarkJumpUrl = bookmark => chrome.runtime.getURL("src/region/query.html") +
+  "?bookmark=" + encodeURIComponent(bookmark.id);
+
 PTB.unpackTradeQuery = async function (token) {
   const binary = atob(decodeURIComponent(token).replace(/-/g, "+").replace(/_/g, "/"));
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
@@ -103,4 +107,17 @@ PTB.unpackTradeQuery = async function (token) {
     chunks.push(value);
   }
   return JSON.parse(await new Blob(chunks).text());
+};
+
+// Object property order and gzip headers can differ when trade rebuilds a URL.
+// Array order and every search condition remain part of its identity.
+PTB.tradeQueryKey = function (query) {
+  if (!query || typeof query !== "object" || Array.isArray(query)) return null;
+  return JSON.stringify(query, (_, value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    const sorted = Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]));
+    // On revisit, trade omits disabled:false from enabled stat filters.
+    if (typeof sorted.id === "string" && sorted.disabled === false) delete sorted.disabled;
+    return sorted;
+  });
 };

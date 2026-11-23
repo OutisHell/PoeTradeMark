@@ -225,20 +225,6 @@ input {
   font-weight: 700;
 }
 
-.realm-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 20px;
-  padding: 2px 7px;
-  border: 1px solid #cdd6e2;
-  border-radius: 999px;
-  color: #2d4f73;
-  background: #edf5ff;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-}
-
 .league-badge {
   display: inline-flex;
   align-items: center;

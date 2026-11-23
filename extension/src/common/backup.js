@@ -46,6 +46,11 @@
     const low = record.lowPrice;
     return {
       id, game, host, type, league, searchId, title, realm: PTB.hostToRealm(host),
+      ...(isText(record.autoFilterTitle) && title.startsWith(record.autoFilterTitle) ? { autoFilterTitle: record.autoFilterTitle } : {}),
+      ...(record.filterQuery && typeof record.filterQuery === "object" ? { filterQuery: {
+        ...(Array.isArray(record.filterQuery.stats) ? { stats: record.filterQuery.stats } : {}),
+        ...(record.filterQuery.filters && typeof record.filterQuery.filters === "object" ? { filters: record.filterQuery.filters } : {}),
+      } } : {}),
       ...(Object.hasOwn(PTB.bookmarkRarityColors, record.rarity) ? { rarity: record.rarity } : {}),
       ...(PTB.isTitleColor(record.titleColor) ? { titleColor: record.titleColor } : {}),
       ...(record.collectionId != null ? { collectionId: record.collectionId } : {}),
@@ -53,6 +58,7 @@
       createdAt: Number.isFinite(record.createdAt) ? record.createdAt : 0,
       itemName: isText(record.itemName) ? record.itemName : title,
       filters: record.filters || [], iconUrl: iconUrl(record.iconUrl, host),
+      ...(!low && Number.isFinite(record.emptyPriceAt) ? { emptyPriceAt: record.emptyPriceAt } : {}),
       lowPrice: low && Number.isFinite(low.amount) && isText(low.currency)
         ? { amount: low.amount, currency: low.currency, ...(Number.isFinite(low.at) ? { at: low.at } : {}) } : null,
     };
@@ -320,6 +326,60 @@
     }
   }
 
-  PTB.backup = { validate, selectScope, snapshot, sourceCollections, download,
+  const codePrefix = "PTM1.";
+  const maxCodeChars = 1024 * 1024;
+  const maxJsonBytes = 8 * 1024 * 1024;
+  const tooLarge = () => { throw new RangeError("Collection exceeds the share code limit"); };
+
+  async function shareCode(scope, collection) {
+    if (!isGame(scope) || !isId(collection)) invalid();
+    const json = new Blob([JSON.stringify(await snapshot(scope, collection))]);
+    if (json.size > maxJsonBytes) tooLarge();
+    const compressed = json.stream().pipeThrough(new CompressionStream("gzip"));
+    const bytes = new Uint8Array(await new Response(compressed).arrayBuffer());
+    if (codePrefix.length + Math.ceil(bytes.length * 4 / 3) > maxCodeChars) tooLarge();
+    // Each full block ends at a base64 triplet and fits within the argument limit.
+    const chunks = [];
+    for (let i = 0; i < bytes.length; i += 24576) {
+      chunks.push(btoa(String.fromCharCode(...bytes.subarray(i, i + 24576))));
+    }
+    return codePrefix + chunks.join("").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  async function readCode(text) {
+    if (!isText(text)) invalid();
+    const code = text.trim();
+    if (code.length > maxCodeChars) tooLarge();
+    if (!code.startsWith(codePrefix)) invalid();
+    const body = code.slice(codePrefix.length);
+    if (!/^[A-Za-z0-9_-]+$/.test(body)) invalid();
+    const binary = atob(body.replace(/-/g, "+").replace(/_/g, "/"));
+    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const reader = stream.getReader();
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    const parts = [];
+    let size = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maxJsonBytes) tooLarge();
+        parts.push(decoder.decode(value, { stream: true }));
+      }
+      parts.push(decoder.decode());
+    } catch (error) {
+      await reader.cancel().catch(() => {});
+      throw error;
+    } finally {
+      reader.releaseLock();
+    }
+    const data = validate(JSON.parse(parts.join("")));
+    if (!isGame(data.scope) || !data.sharedCollection) invalid();
+    return data;
+  }
+
+  PTB.backup = { validate, selectScope, snapshot, sourceCollections, download, shareCode, readCode,
     importFile: (file, mode, scope = "all", destination = null) => writeBookmarkChange("importBackup", file, mode, scope, destination) };
 })();

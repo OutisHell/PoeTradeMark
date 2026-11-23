@@ -13,6 +13,13 @@ PTB.bookmarkGame = function (bookmark) {
 
 const bookmarkArray = (value) => Array.isArray(value) ? value : [];
 
+const priceTime = mark => mark.lowPrice?.at ?? mark.emptyPriceAt ?? (mark.lowPrice ? 0 : -1);
+function setObservedPrice(mark, price, at) {
+  mark.lowPrice = price;
+  if (price) delete mark.emptyPriceAt;
+  else mark.emptyPriceAt = at;
+}
+
 async function readBookmarkLists() {
   const { bookmarks, bookmarkFolders, bookmarkRootOrder, bookmarkRecentGroups, bookmarkCollections, bookmarkActiveCollections, bookmarkDefaultCollections } = await chrome.storage.local.get([
     "bookmarks", "bookmarkFolders", "bookmarkRootOrder", "bookmarkRecentGroups", "bookmarkCollections", "bookmarkActiveCollections", "bookmarkDefaultCollections",
@@ -111,7 +118,7 @@ PTB.storage = {
     return (await this.listView(game)).bookmarks;
   },
   add: (partial) => writeBookmarkChange("add", partial),
-  recordSearchPrice: (search, price) => writeBookmarkChange("recordSearchPrice", search, price),
+  recordBookmarkPrice: (id, href, price, at = price?.at) => writeBookmarkChange("recordBookmarkPrice", id, href, price, at),
   update: (id, patch) => writeBookmarkChange("update", id, patch),
   remove: (id) => writeBookmarkChange("remove", id),
   move: (id, folderId) => writeBookmarkChange("move", id, folderId),
@@ -164,6 +171,44 @@ function collectionName(name) {
   return trimmed;
 }
 
+PTB.addBookmarkSnapshot = async function (partial, extraStorage = {}) {
+  const state = await readBookmarkLists();
+  const { bookmarks } = state;
+  const game = PTB.bookmarkGame(partial);
+  const collectionId = activeCollectionFor(game, state);
+  if (!collectionId) throw new Error("Create a collection before saving bookmarks");
+  // 같은 게임 안에서 같은 제목이 이미 있으면 뒤에 (2),(3)… 붙여 유일하게
+  let title = partial.title;
+  const base = (partial.title || "").trim();
+  if (base) {
+    const taken = new Set(bookmarks.filter((b) => PTB.bookmarkGame(b) === game && collectionOf(b) === collectionId).map((b) => b.title));
+    title = base;
+    let n = 2;
+    while (taken.has(title)) {
+      title = `${base} (${n})`;
+      n += 1;
+    }
+  }
+  const bookmark = {
+    iconUrl: null,
+    query: null,
+    sort: null,
+    ...partial,
+    game,
+    folderId: null,
+    title,
+    itemName: String(partial.itemName ?? partial.title ?? "").trim(),
+    realm: partial.realm || PTB.hostToRealm(partial.host),
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
+  };
+  if (collectionId !== "default") bookmark.collectionId = collectionId;
+  else delete bookmark.collectionId;
+  bookmarks.unshift(bookmark);
+  await chrome.storage.local.set({ ...extraStorage, bookmarks });
+  return bookmark;
+};
+
 // 워커만 호출한다. 저장 배열을 읽고 쓰는 동안 다른 변경이 끼어들지 않는다.
 PTB.bookmarkChanges = {
   async editSelected(game, collection, ids, operation) {
@@ -214,20 +259,15 @@ PTB.bookmarkChanges = {
     }
     await chrome.storage.local.set(changes);
   },
-  async recordSearchPrice(search, price) {
-    if (!search?.searchId || !Number.isFinite(price?.amount) || price.amount <= 0 ||
-        !price.currency || !Number.isFinite(price.at)) return;
+  async recordBookmarkPrice(id, href, price, at = price?.at) {
+    if (!id || !Number.isFinite(at) || (price !== null &&
+        (!Number.isFinite(price?.amount) || price.amount <= 0 || !price.currency || price.at !== at))) return;
     const saved = await chrome.storage.local.get(["bookmarks"]);
     const bookmarks = bookmarkArray(saved.bookmarks);
-    let changed = false;
-    for (const mark of bookmarks) {
-      if (mark.searchId !== search.searchId || mark.host !== search.host || mark.type !== search.type ||
-          PTB.bookmarkGame(mark) !== search.game || PTB.decodePathPart(mark.league) !== search.league ||
-          mark.lowPrice?.at >= price.at) continue;
-      mark.lowPrice = price;
-      changed = true;
-    }
-    if (changed) await chrome.storage.local.set({ bookmarks });
+    const mark = bookmarks.find(item => item.id === id);
+    if (!mark || PTB.buildTradeUrl(mark) !== href || priceTime(mark) >= at) return;
+    setObservedPrice(mark, price, at);
+    await chrome.storage.local.set({ bookmarks });
   },
   async moveToCollection(game, id, destination) {
     const state = await readBookmarkLists();
@@ -318,58 +358,32 @@ PTB.bookmarkChanges = {
     }
   },
 
-  // id/createdAt 채워 앞에 추가, 만든 Bookmark 반환
-  async add(partial) {
-    const state = await readBookmarkLists();
-    const { bookmarks } = state;
-    const game = PTB.bookmarkGame(partial);
-    const collectionId = activeCollectionFor(game, state);
-    if (!collectionId) throw new Error("Create a collection before saving bookmarks");
-    // 같은 게임 안에서 같은 제목이 이미 있으면 뒤에 (2),(3)… 붙여 유일하게
-    let title = partial.title;
-    const base = (partial.title || "").trim();
-    if (base) {
-      const taken = new Set(bookmarks.filter((b) => PTB.bookmarkGame(b) === game && collectionOf(b) === collectionId).map((b) => b.title));
-      title = base;
-      let n = 2;
-      while (taken.has(title)) {
-        title = `${base} (${n})`;
-        n += 1;
-      }
-    }
-    const bookmark = {
-      iconUrl: null,
-      query: null,
-      sort: null,
-      ...partial,
-      game,
-      folderId: null,
-      title,
-      itemName: String(partial.itemName ?? partial.title ?? "").trim(),
-      realm: partial.realm || PTB.hostToRealm(partial.host),
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
-    };
-    if (collectionId !== "default") bookmark.collectionId = collectionId;
-    else delete bookmark.collectionId;
-    bookmarks.unshift(bookmark);
-    await chrome.storage.local.set({ bookmarks });
-    return bookmark;
-  },
+  add(partial) { return PTB.addBookmarkSnapshot(partial); },
 
   async update(id, patch) {
     const { bookmarks } = await readBookmarkLists();
     const bookmark = bookmarks.find((item) => item.id === id);
     if (!bookmark) return;
-    if (Object.hasOwn(patch, "title")) bookmark.title = patch.title;
+    if (Object.hasOwn(patch, "title")) {
+      bookmark.title = patch.title;
+      delete bookmark.autoFilterTitle;
+    }
     if (Object.values(PTB.bookmarkRarityColors).includes(patch.titleColor)) bookmark.titleColor = patch.titleColor;
     if (Object.hasOwn(patch, "lowPrice")) bookmark.lowPrice = patch.lowPrice;
     await chrome.storage.local.set({ bookmarks });
   },
 
   async remove(id) {
-    const { bookmarks } = await readBookmarkLists();
-    await chrome.storage.local.set({ bookmarks: bookmarks.filter((item) => item.id !== id) });
+    const { bookmarks, folders, rootOrders } = await readBookmarkLists();
+    const removed = bookmarks.find(item => item.id === id);
+    if (!removed) return;
+    const game = PTB.bookmarkGame(removed);
+    const remaining = bookmarks.filter(item => item.id !== id);
+    const changes = { bookmarks: remaining };
+    if (rootOrders[game]?.length) {
+      changes.bookmarkRootOrder = { ...rootOrders, [game]: rootOrderFor(game, remaining, folders, rootOrders) };
+    }
+    await chrome.storage.local.set(changes);
   },
 
   async move(id, folderId) {

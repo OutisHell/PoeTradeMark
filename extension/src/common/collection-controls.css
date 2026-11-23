@@ -32,7 +32,12 @@
 }
 .ptb-collection-controls .ptb-collection-review > :is(select, input) { flex-basis: 100%; }
 .ptb-collection-review [hidden] { display: none; }
-.ptb-collection-controls :is(select, button, input) {
+.ptb-collection-review textarea {
+  flex: 1 1 100%;
+  max-width: 100%;
+  resize: vertical;
+}
+.ptb-collection-controls :is(select, button, input, textarea) {
   box-sizing: border-box;
   min-width: 0;
   min-height: 26px;
@@ -89,3 +94,28 @@
 .ptb-collection-controls :is(button:hover, button:focus-visible, select:focus-visible, input:focus-visible) {
   border-color: var(--ptb-bm-accent);
 }
+.ptb-recent-settings { position: relative; margin-inline-start: auto; }
+.ptb-recent-settings summary {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 4px;
+  background: var(--ptb-bm-fill);
+  cursor: pointer;
+}
+.ptb-recent-settings > div {
+  position: absolute;
+  z-index: 6;
+  inset: calc(100% + 3px) 0 auto auto;
+  display: grid;
+  gap: 8px;
+  width: min(235px, 65vw);
+  padding: 10px;
+  background: var(--ptb-card);
+  border: 1px solid var(--ptb-bm-border);
+  border-radius: 5px;
+}
+.ptb-collection-controls .ptb-recent-settings input { min-height: 0; }
+.ptb-popup #ptb-recent-toggle[aria-pressed="true"] { color: var(--ptb-bm-accent); border-color: currentColor; }

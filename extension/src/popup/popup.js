@@ -30,12 +30,6 @@
     listEl.appendChild(makeElement("p", "empty-state", message("emptyList", "No bookmarks yet.")));
   }
 
-  function getRealmLabel(bookmark) {
-    return globalThis.PTB && PTB.realmLabel
-      ? PTB.realmLabel(bookmark.realm)
-      : (bookmark.realm || "").toUpperCase();
-  }
-
   function createIcon(bookmark) {
     const iconWrap = makeElement("div", "bookmark-icon");
 
@@ -60,6 +54,7 @@
   }
 
   const ICO = {
+    history: PTB.historyIconPaths,
     chevronsRight: [
       ["path", { d: "m6 17 5-5-5-5" }],
       ["path", { d: "m13 17 5-5-5-5" }],
@@ -140,12 +135,28 @@
   async function refresh() {
     const version = ++refreshVersion;
     const game = await getActiveGame();
-    const view = await PTB.storage.listView(game);
     if (version !== refreshVersion) return;
-    document.documentElement.classList.toggle("ptb-game-poe1", game === "poe1");
-    document.documentElement.classList.toggle("ptb-game-poe2", game === "poe2");
-    document.body.classList.toggle("ptb-game-poe2", game === "poe2");
-    const editButton = PTB.renderCollectionControls(document.querySelector(".ptb-collection-controls"), game, view, refresh);
+    const displayGame = game || (showingRecent ? recentGame : null);
+    document.documentElement.classList.toggle("ptb-game-poe1", displayGame === "poe1");
+    document.documentElement.classList.toggle("ptb-game-poe2", displayGame === "poe2");
+    document.body.classList.toggle("ptb-game-poe2", displayGame === "poe2");
+    const controls = document.querySelector(".ptb-collection-controls");
+    if (showingRecent) {
+      const recent = await PTB.readRecentView(displayGame);
+      if (version !== refreshVersion) return;
+      PTB.renderRecentView(listEl, controls, recent, createBookmarkCard, () => {
+        setRecentMode(false);
+        document.getElementById("ptb-recent-toggle").focus();
+      }, null, !game && (chosen => {
+        recentGame = chosen;
+        refresh().catch(console.error);
+      }));
+      return;
+    }
+    const view = await PTB.storage.listView(game);
+    view.bookmarks = await PTB.localizeBookmarkList(view.bookmarks);
+    if (version !== refreshVersion) return;
+    const editButton = PTB.renderCollectionControls(controls, game, view, refresh);
     const scope = [game, view.collectionId].join(":");
     if (listEl.dataset.ptbScope === scope && listEl.querySelector(".ptb-bm-dragging, .ptb-bm-form, .ptb-title-editor")) return;
     listEl.dataset.ptbScope = scope;
@@ -165,6 +176,13 @@
   }
 
   let refreshVersion = 0;
+  let showingRecent = false, recentGame = "poe1";
+
+  function setRecentMode(active) {
+    showingRecent = active;
+    document.getElementById("ptb-recent-toggle").setAttribute("aria-pressed", String(active));
+    refresh().catch(console.error);
+  }
 
   function createBookmarkCard(bookmark) {
     const card = makeElement("article", "bookmark-card");
@@ -178,8 +196,7 @@
     });
     const grip = makeElement("span", "ptb-bm-grip", "⋮⋮");
     grip.title = message("folderDrag", "Drag bookmark");
-    nameRow.appendChild(grip);
-    nameRow.appendChild(pencil);
+    if (!bookmark.recentId) nameRow.append(grip, pencil);
     nameRow.appendChild(heading);
     const meta = makeElement("div", "bookmark-meta");
     if (bookmark.lowPrice && bookmark.lowPrice.amount != null && bookmark.lowPrice.currency) {
@@ -191,7 +208,6 @@
       price.title = PTB.observedPriceLabel(bookmark.lowPrice);
       meta.appendChild(price);
     }
-    meta.appendChild(makeElement("span", "realm-badge", getRealmLabel(bookmark)));
     if (bookmark.league) {
       meta.appendChild(makeElement("span", "league-badge", bookmark.league));
     }
@@ -205,16 +221,17 @@
       else navigateActiveTab(url);
     };
     const jump = iconButton("button button-primary", "chevronsRight", message("jump", "Go to search"),
-      (e) => navigate(PTB.buildTradeUrl(bookmark), e));
+      (e) => navigate(bookmark.recentId ? PTB.recentJumpUrl(bookmark) : PTB.bookmarkJumpUrl(bookmark), e));
     actions.appendChild(PTB.tradeRegion.splitButton(jump, bookmark, navigate));
-    actions.appendChild(iconButton("button button-danger", "trash", message("delete", "Delete"), async () => {
+    actions.appendChild(bookmark.recentId ? PTB.recentSaveButton(bookmark, "button") :
+      iconButton("button button-danger", "trash", message("delete", "Delete"), async () => {
       await PTB.storage.remove(bookmark.id);
       await refresh();
     }));
 
     card.appendChild(createIcon(bookmark));
     card.appendChild(content);
-    PTB.appendBookmarkFilters(card, bookmark.filters, "bookmark-filters", "filter-chip");
+    PTB.appendBookmarkFilters(card, bookmark.filters, "bookmark-filters", "filter-chip", bookmark.filterParts);
     card.appendChild(actions);
     return card;
   }
@@ -223,6 +240,11 @@
     const lang = PTB.i18n?.getLang() || "en";
     document.documentElement.lang = lang === "tw" ? "zh-Hant" : lang;
     if (titleEl) titleEl.textContent = message("popupTitle", "PoE Trade Mark");
+    const recent = document.getElementById("ptb-recent-toggle");
+    if (recent) {
+      recent.title = message("recentHeading");
+      recent.setAttribute("aria-label", recent.title);
+    }
     const btn = document.querySelector("#lang-wrap .lang-btn");
     if (btn) btn.title = message("language", "Language");
   }
@@ -283,10 +305,19 @@
 
     applyStaticLabels();
     setupLangSelect();
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab?.incognito && !chrome.extension.inIncognitoContext) {
+      const recent = iconButton("lang-btn", "history", message("recentHeading"), () => setRecentMode(!showingRecent));
+      recent.id = "ptb-recent-toggle";
+      recent.setAttribute("aria-label", recent.title);
+      recent.setAttribute("aria-pressed", "false");
+      document.getElementById("lang-wrap").before(recent);
+    }
     document.getElementById("ptb-redirect-slot").append(PTB.createRedirectControl(false));
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes.bookmarks || changes.bookmarkFolders || changes.bookmarkRootOrder ||
-          changes.bookmarkRecentGroups || changes.bookmarkCollections || changes.bookmarkActiveCollections || changes.bookmarkDefaultCollections)) {
+          changes.bookmarkRecentGroups || changes.bookmarkCollections || changes.bookmarkActiveCollections || changes.bookmarkDefaultCollections ||
+          showingRecent && (changes.ptbRecentPoe1 || changes.ptbRecentPoe2 || changes.ptbRecentEnabled))) {
         refresh().catch(console.error);
       }
     });

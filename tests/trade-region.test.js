@@ -5,6 +5,23 @@ require("../extension/src/common/trade-region.js");
 const { tradeUrl, rules, stripOverride, regions } = PTB.tradeRegion;
 global.chrome = { runtime: { getURL: (path) => "chrome-extension://test/" + path } };
 
+test("manual region selection survives an unmarked follow-up request in its own tab", () => {
+  for (const code of ["jp", "fr", "es", "en", "de"]) {
+    const href = tradeUrl("https://poe.kakaogames.com/trade/search/Covens/id", code, true);
+    const clean = stripOverride(href);
+    const forced = rules("kr", { poe1: { league: "Standard" } });
+    const hits = forced.filter(rule => new RegExp(rule.condition.regexFilter).test(clean));
+    assert.equal(hits.sort((a, b) => b.priority - a.priority)[0].action.type, "redirect");
+    const guard = PTB.tradeRegion.manualRule(55, href);
+    assert.deepEqual(guard.condition.tabIds, [55]);
+    assert.deepEqual(guard.condition.resourceTypes, ["main_frame"]);
+    const match = new RegExp(guard.condition.regexFilter);
+    assert.ok(match.test(clean) && !match.test(clean.replace(regions[code][0], regions.kr[0])));
+    assert.ok(!match.test(clean.replace("/trade/", "/trade2/")));
+    assert.ok(guard.priority > Math.max(...hits.map(r => r.priority)));
+  }
+});
+
 test("JSON search links take the same pre-translation route on automatic and manual moves", () => {
   const redirects = rules("kr");
   const rule = redirects.find((r) => r.id === 9104);
