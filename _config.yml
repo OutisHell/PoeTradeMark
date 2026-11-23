@@ -1,0 +1,11 @@
+title: PoE Trade Mark
+description: Privacy policy for the PoE Trade Mark browser extension
+exclude:
+  - AGENTS.md
+  - CLAUDE.md
+  - README.md
+  - README.ko.md
+  - docs
+  - extension
+  - tests
+  - tools
