@@ -2,17 +2,23 @@
 
 PoE Trade Mark is a Chrome extension for bookmarking official Path of Exile and Path of Exile 2 trade searches.
 
-**Last updated:** 2026-11-22
+**Last updated:** 2026-11-24
 
 ## What data is stored
 
 Bookmarks you save (title, trade URL parts, filter descriptions, icons, optional lowest price), their groups and display order, and your language, preferred trade site, and rate-table preferences are stored in Chrome’s local extension storage on your computer (`chrome.storage.local`). Chrome stores your preferred trade site locally as a redirect rule when you enable automatic redirection.
 
-Exporting saves a collection or the selected games’ bookmark lists to a JSON file on your device. Someone you share it with can read the search links, saved filters, and names you gave your bookmarks, groups, and collections. Importing reads the file you choose into your local extension storage.
+In versions with **Recent searches**, the extension automatically remembers completed searches on supported PoE trade pages in regular windows. This is enabled by default. Each record includes the time, trade site, game, league, search link and a bookmark summary, which can include the search title, filter conditions, item icon and observed price. Search links can contain values you entered in the trade form. Recent searches stay in this Chrome profile. The extension does not read Chrome’s browsing history, record searches from incognito windows or send recent searches to a server.
+
+Each game retains up to 30 searches for up to seven days, subject to a 256 KiB limit on its serialized list. Older records are discarded first. Expired records are filtered on access and cleaned up periodically while Chrome runs and at startup. Open **Recent searches** to clear one game’s history or turn recording off and clear both games. Promoting a search moves it into your selected bookmark collection, where it stays until you delete it.
+
+Exporting saves the bookmark collection you select. Versions with share codes can also copy a collection to the clipboard at your request. Someone you share a collection with can read its search links, saved filters and the names you gave your bookmarks, groups and collections. Recent search history is excluded. Importing reads the file or code you choose into your local extension storage.
 
 Saving current trade settings records the country, league and trade mode locally. Each game has its own league and trade mode preferences.
 
 Nothing is uploaded to us. There is no account, no analytics, and no advertising.
+
+We use search data only to provide the extension’s trade-search features, in accordance with the [Chrome Web Store User Data Policy, including its Limited Use requirements](https://developer.chrome.com/docs/webstore/program-policies/limited-use).
 
 ## Network requests
 
@@ -25,6 +31,7 @@ The extension reads the official trade site in your browser (Korea, global Path 
 ## Permissions
 
 - **storage / unlimitedStorage** — save bookmarks and settings on this device.
+- **alarms** (versions with Recent searches) — periodically remove expired local searches.
 - **tabs** — open a saved search in the current tab or a new tab when you click jump.
 - **declarativeNetRequestWithHostAccess** — Chrome redirects supported trade pages to your chosen site and applies your league and trade mode preferences to item searches.
 - **Host access** to Path of Exile trade sites and poe.ninja — inject the sidebar on trade pages and load rates.
