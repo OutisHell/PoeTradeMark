@@ -9,17 +9,6 @@ function queueWrite(operation) {
   pendingBookmarkWrite = write.catch(() => {});
   return write;
 }
-async function maintainHistory() {
-  await queueWrite(() => PTB.recentSearches.prune());
-  if (!await chrome.alarms.get("ptb-expire-searches")) {
-    await chrome.alarms.create("ptb-expire-searches", { periodInMinutes: 60 });
-  }
-}
-chrome.runtime.onInstalled?.addListener(() => maintainHistory().catch(console.error));
-chrome.runtime.onStartup?.addListener(() => maintainHistory().catch(console.error));
-chrome.alarms?.onAlarm.addListener(alarm => {
-  if (alarm.name === "ptb-expire-searches") queueWrite(() => PTB.recentSearches.prune()).catch(console.error);
-});
 
 // Manual choices may go through the site's login/challenge and return without
 // our URL marker. Keep the tab-specific exemption through that round trip.
@@ -45,8 +34,12 @@ chrome.tabs?.onUpdated?.addListener(async (tabId, change) => {
 // 콘텐츠 스크립트는 CORS 때문에 poe.ninja를 직접 못 친다. 여기(확장 origin)에서만 fetch.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg) return;
-  if (msg.cmd === "ptb-recent" && ["record", "promote", "list", "clear", "setEnabled"].includes(msg.action)) {
+  if (msg.cmd === "ptb-recent" && ["record", "promote", "list", "clear", "setEnabled", "prune"].includes(msg.action)) {
     if (_sender.tab?.incognito) { sendResponse({ value: null }); return; }
+    if (msg.action === "prune" && (!_sender.tab || _sender.frameId !== 0 || !PTB.gameFromUrl(_sender.url))) {
+      sendResponse({ value: null });
+      return;
+    }
     if (msg.action === "record") {
       const mark = msg.args?.[0];
       if (!mark || !_sender.tab || _sender.frameId !== 0 || PTB.gameFromUrl(_sender.url) !== mark.game ||
@@ -109,10 +102,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       (error) => sendResponse({ ok: false, error: error.message })
     );
     return true;
-  }
-  if (msg.cmd === "ptb-ping") {
-    sendResponse({ ok: true });
-    return;
   }
   if (msg.cmd !== "ptb-rates-fetch") return;
   const url = String(msg.url || "");

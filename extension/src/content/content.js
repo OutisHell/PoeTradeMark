@@ -309,6 +309,7 @@
     let notice;
     chrome.storage.local.get(["ptbRecentEnabled", "ptbRecentNoticeSeen"]).then(async data => {
       recordRecent = data.ptbRecentEnabled !== false;
+      if (recordRecent) PTB.recentAction("prune").catch(console.error);
       scheduleRecent();
       if (!recordRecent || data.ptbRecentNoticeSeen || !document.body) return;
       await PTB.i18n.init();
@@ -1889,11 +1890,6 @@
         },
         true
       );
-    } catch (_e) {}
-    try {
-      chrome.runtime.sendMessage({ cmd: "ptb-ping" }, () => {
-        void chrome.runtime.lastError;
-      });
     } catch (_e) {}
     try {
       chrome.storage.onChanged.addListener((changes, area) => {

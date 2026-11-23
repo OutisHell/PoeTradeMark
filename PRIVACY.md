@@ -10,7 +10,7 @@ Bookmarks you save (title, trade URL parts, filter descriptions, icons, optional
 
 In versions with **Recent searches**, the extension automatically remembers completed searches on supported PoE trade pages in regular windows. This is enabled by default. Each record includes the time, trade site, game, league, search link and a bookmark summary, which can include the search title, filter conditions, item icon and observed price. Search links can contain values you entered in the trade form. Recent searches stay in this Chrome profile. The extension does not read Chrome’s browsing history, record searches from incognito windows or send recent searches to a server.
 
-Each game retains up to 30 searches for up to seven days, subject to a 256 KiB limit on its serialized list. Older records are discarded first. Expired records are filtered on access and cleaned up periodically while Chrome runs and at startup. Open **Recent searches** to clear one game’s history or turn recording off and clear both games. Promoting a search moves it into your selected bookmark collection, where it stays until you delete it.
+The recent searches list shows up to 30 entries per game from the past seven days, with a 256 KiB storage limit per game. In version 1.1.1 and later, visiting a supported trade page in a regular window clears expired entries for both games. Opening a game’s recent searches also clears its expired entries. If you stop using the trade site and recent searches, expired entries may remain on this device until your next visit. Open **Recent searches** to clear one game’s history or turn recording off and clear both games. Promoting a search moves it into your selected bookmark collection, where it stays until you delete it.
 
 Exporting saves the bookmark collection you select. Versions with share codes can also copy a collection to the clipboard at your request. Someone you share a collection with can read its search links, saved filters and the names you gave your bookmarks, groups and collections. Recent search history is excluded. Importing reads the file or code you choose into your local extension storage.
 
@@ -31,7 +31,6 @@ The extension reads the official trade site in your browser (Korea, global Path 
 ## Permissions
 
 - **storage / unlimitedStorage** — save bookmarks and settings on this device.
-- **alarms** (versions with Recent searches) — periodically remove expired local searches.
 - **tabs** — open a saved search in the current tab or a new tab when you click jump.
 - **declarativeNetRequestWithHostAccess** — Chrome redirects supported trade pages to your chosen site and applies your league and trade mode preferences to item searches.
 - **Host access** to Path of Exile trade sites and poe.ninja — inject the sidebar on trade pages and load rates.

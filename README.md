@@ -20,7 +20,7 @@ PoE Trade Mark is a Chrome extension for saving Path of Exile and Path of Exile 
 
 ## Find a recent search
 
-Click the **clock** at the top of the floating buttons to open recent searches. Click the list button to return to bookmarks. In the extension popup, the clock in the header switches between the two lists. Select **☆** to move its saved filters and observed price into your active collection. Recording is on by default in regular windows. Each game keeps up to 30 searches for seven days on this device, with a 256 KiB limit per game. Use **⋯** in Recent searches to clear one game or turn recording off to erase both histories. Incognito searches are excluded.
+Click the **clock** at the top of the floating buttons to open recent searches. Click the list button to return to bookmarks. In the extension popup, the clock in the header switches between the two lists. Select **☆** to move its saved filters and observed price into your active collection. Recording is on by default in regular windows. Each game shows up to 30 searches from the past seven days on this device, with a 256 KiB limit per game. Use **⋯** in Recent searches to clear one game or turn recording off to erase both histories. Incognito searches are excluded.
 
 ## Organize and share bookmarks
 
@@ -97,7 +97,7 @@ PoE Trade Mark는 **패스 오브 엑자일 1과 2의 거래소 검색 조건을
 
 ### 최근 검색 다시 열기
 
-거래소 오른쪽 아래 버튼 중 맨 위의 **시계**를 누르면 최근 검색 목록이 열립니다. **목록** 버튼을 누르면 즐겨찾기로 돌아갑니다. 확장 프로그램 팝업에서는 상단의 시계로 두 목록을 전환합니다. 항목 옆 **☆**를 누르면 검색 당시의 필터와 확인된 가격이 현재 컬렉션의 즐겨찾기로 옮겨집니다. POE1·POE2 각각 최대 30개를 7일 동안 이 기기에 보관하며, 용량 한도(게임당 256KiB)에 먼저 닿으면 오래된 기록부터 지웁니다. 기록은 기본으로 켜져 있습니다. 최근 검색의 **⋯**에서 게임별 기록을 지우거나 기록을 꺼서 두 게임의 기록을 모두 지울 수 있습니다. 시크릿 창의 검색은 제외합니다.
+거래소 오른쪽 아래 버튼 중 맨 위의 **시계**를 누르면 최근 검색 목록이 열립니다. **목록** 버튼을 누르면 즐겨찾기로 돌아갑니다. 확장 프로그램 팝업에서는 상단의 시계로 두 목록을 전환합니다. 항목 옆 **☆**를 누르면 검색 당시의 필터와 확인된 가격이 현재 컬렉션의 즐겨찾기로 옮겨집니다. POE1·POE2 각각 최근 7일의 검색을 최대 30개까지 표시하며, 용량 한도(게임당 256KiB)에 먼저 닿으면 오래된 기록부터 지웁니다. 기록은 기본으로 켜져 있습니다. 최근 검색의 **⋯**에서 게임별 기록을 지우거나 기록을 꺼서 두 게임의 기록을 모두 지울 수 있습니다. 시크릿 창의 검색은 제외합니다.
 
 ### 컬렉션 정리와 공유
 
