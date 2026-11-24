@@ -1,5 +1,6 @@
 // Generate aligned name/type arrays. Each row identifies the same item in every locale.
 // Sources are build-time only. The extension loads just the two languages being used.
+// After updating the English rows, run harvest-client-trade-names.mjs to align the client-derived packs.
 import { mkdir, writeFile } from "node:fs/promises";
 
 const translated = "https://raw.githubusercontent.com/gw1108/PathOfExile_Translated/ab5c6a714462f1a6428dad7270f7c8822acf3994/dist/poe1";

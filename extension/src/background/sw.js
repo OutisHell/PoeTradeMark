@@ -1,4 +1,4 @@
-importScripts("../common/url.js", "../common/trade-region.js", "redirect-settings.js", "trade-search.js", "trade-leagues.js", "../common/storage.js", "../common/backup.js", "recent-searches.js");
+importScripts("../common/url.js", "../common/trade-region.js", "redirect-settings.js", "trade-search.js", "pob-fields.js", "pob-titles.js", "pob-stats.js", "pob-copy.js", "trade-leagues.js", "../common/storage.js", "../common/backup.js", "recent-searches.js");
 
 // Refresh saved redirect rules from versions which only switched the hostname.
 chrome.runtime.onInstalled?.addListener(() => PTB.redirectSettings(null, true).catch(console.error));
@@ -34,6 +34,11 @@ chrome.tabs?.onUpdated?.addListener(async (tabId, change) => {
 // 콘텐츠 스크립트는 CORS 때문에 poe.ninja를 직접 못 친다. 여기(확장 origin)에서만 fetch.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg) return;
+  if (msg.cmd === "ptb-pob-copy" && _sender.tab && _sender.frameId === 0 && PTB.gameFromUrl(_sender.url)) {
+    PTB.pobItemText(msg.item, new URL(_sender.url).host, PTB.gameFromUrl(_sender.url))
+      .then(text => sendResponse({ text }), e => sendResponse({ error: e.message }));
+    return true;
+  }
   if (msg.cmd === "ptb-recent" && ["record", "promote", "list", "clear", "setEnabled", "prune"].includes(msg.action)) {
     if (_sender.tab?.incognito) { sendResponse({ value: null }); return; }
     if (msg.action === "prune" && (!_sender.tab || _sender.frameId !== 0 || !PTB.gameFromUrl(_sender.url))) {

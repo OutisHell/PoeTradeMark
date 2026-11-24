@@ -1410,3 +1410,23 @@ body.ptb-has-sidebar {
 #ptb-recent-toggle.ptb-sidebar-toggle { bottom: 120px; }
 body:has(> #ptb-preferred-site) #ptb-recent-toggle.ptb-sidebar-toggle { bottom: 168px; }
 .ptb-sb-row.ptb-recent-card { grid-template-columns: 44px minmax(0, 1fr); }
+.row[data-id] .ptb-pob-copy {
+  display: none;
+  vertical-align: middle;
+  margin: 0 3px;
+  padding: 1px 4px;
+  border: 1px solid #89724f;
+  background: #25211d;
+  color: #ebd7ac;
+  font: 600 12px/18px system-ui, sans-serif;
+  cursor: pointer;
+}
+.row[data-id]:hover .ptb-pob-copy { display: inline-block; }
+.row[data-id] .ptb-pob-copy:is(:hover, :focus-visible) { color: white; border-color: #ebd7ac; }
+.results .row[data-id] .left > .ptb-pob-copy {
+  position: absolute;
+  left: 84px;
+  bottom: 8px;
+  height: 30px;
+  margin: 0;
+}

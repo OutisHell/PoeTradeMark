@@ -31,6 +31,8 @@ When you save a bookmark, the extension can infer its title color from listings 
 
 The extension requests the league list for the selected game from the official Korean trade site. It caches the response locally for one hour and can reuse the last list if a refresh fails.
 
+When you click **PoB** on a listing, the extension converts the item data already loaded in that trade tab to English using dictionaries included with the extension, then writes the result to your clipboard. Conversion takes place on your device.
+
 The extension reads the official trade site in your browser (Korea, global Path of Exile, and Taiwan). It fetches currency exchange rates from [poe.ninja](https://poe.ninja/) so listings can be converted. Those requests do not include your bookmarks.
 
 ## Permissions

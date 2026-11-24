@@ -5,6 +5,8 @@ globalThis.PTB = globalThis.PTB || {};
 (function () {
   var M = {
     en: {
+      pobCopy: "Copy item in English for PoB",
+      pobCopyFailed: "Could not copy this item in English",
       backToBookmarks: "Back to bookmarks",
       recentNoMatch: "No matching searches.",
       recentNotice: "Recent trade searches are now saved on this device so you can reopen them.",
@@ -139,6 +141,8 @@ globalThis.PTB = globalThis.PTB || {};
         "Read-only — it only gathers the site's official live search results in one place; it never auto-whispers or buys. Starting opens a background tab per search (up to 5 at once). Stop turns off live search but keeps the tabs so you can still travel to hideout from listings. Close this dashboard tab to fully stop.",
     },
     ko: {
+      pobCopy: "PoB용 영문 아이템 복사",
+      pobCopyFailed: "이 아이템을 영문으로 복사할 수 없습니다",
       backToBookmarks: "즐겨찾기로 돌아가기",
       recentNoMatch: "일치하는 검색 기록이 없습니다.",
       recentNotice: "이제 거래소에서 실행한 검색을 이 기기에 저장해 다음에 다시 열 수 있어요.",
@@ -273,6 +277,8 @@ globalThis.PTB = globalThis.PTB || {};
         "읽기전용 — 사이트 공식 라이브검색 결과를 한곳에 모아 볼 뿐, 자동 귓속말·구매는 하지 않습니다. 시작하면 검색마다 백그라운드 탭에서 라이브가 돌아갑니다(동시 최대 5개). 정지하면 라이브검색만 끄고 탭은 유지해 매물에서 은신처 이동을 계속 쓸 수 있습니다. 완전히 닫으려면 이 대시보드 탭을 닫으세요.",
     },
     ja: {
+      pobCopy: "PoB用に英語でアイテムをコピー",
+      pobCopyFailed: "英語でコピーできませんでした",
       backToBookmarks: "ブックマークに戻る",
       recentNoMatch: "一致する検索履歴はありません。",
       recentNotice: "取引サイトの検索をこの端末に保存し、後から開けるようになりました。",
@@ -356,6 +362,8 @@ globalThis.PTB = globalThis.PTB || {};
       collapse: "折りたたむ ▴",
     },
     es: {
+      pobCopy: "Copiar el objeto en inglés para PoB",
+      pobCopyFailed: "No se pudo copiar el objeto en inglés",
       backToBookmarks: "Volver a favoritos",
       recentNoMatch: "No hay búsquedas que coincidan.",
       recentNotice: "Las búsquedas del mercado se guardan en este dispositivo para que puedas volver a abrirlas.",
@@ -439,6 +447,8 @@ globalThis.PTB = globalThis.PTB || {};
       collapse: "Contraer ▴",
     },
     fr: {
+      pobCopy: "Copier l’objet en anglais pour PoB",
+      pobCopyFailed: "Impossible de copier cet objet en anglais",
       backToBookmarks: "Revenir aux favoris",
       recentNoMatch: "Aucune recherche correspondante.",
       recentNotice: "Vos recherches sur le marché sont enregistrées sur cet appareil pour pouvoir les rouvrir.",
@@ -522,6 +532,8 @@ globalThis.PTB = globalThis.PTB || {};
       collapse: "Réduire ▴",
     },
     de: {
+      pobCopy: "Gegenstand auf Englisch für PoB kopieren",
+      pobCopyFailed: "Der Gegenstand konnte nicht auf Englisch kopiert werden",
       backToBookmarks: "Zurück zu den Lesezeichen",
       recentNoMatch: "Keine passenden Suchen.",
       recentNotice: "Handelssuchen werden auf diesem Gerät gespeichert, damit du sie wieder öffnen kannst.",
@@ -605,6 +617,8 @@ globalThis.PTB = globalThis.PTB || {};
       collapse: "Einklappen ▴",
     },
     th: {
+      pobCopy: "คัดลอกไอเทมเป็นภาษาอังกฤษสำหรับ PoB",
+      pobCopyFailed: "ไม่สามารถคัดลอกไอเทมนี้เป็นภาษาอังกฤษได้",
       backToBookmarks: "กลับไปยังรายการบุ๊กมาร์ก",
       recentNoMatch: "ไม่พบการค้นหาที่ตรงกัน",
       recentNotice: "การค้นหาในตลาดจะบันทึกไว้ในอุปกรณ์นี้เพื่อให้เปิดดูอีกครั้งได้",
@@ -688,6 +702,8 @@ globalThis.PTB = globalThis.PTB || {};
       collapse: "ย่อ ▴",
     },
     ru: {
+      pobCopy: "Скопировать предмет на английском для PoB",
+      pobCopyFailed: "Не удалось скопировать предмет на английском",
       backToBookmarks: "Вернуться к закладкам",
       recentNoMatch: "Совпадений в истории нет.",
       recentNotice: "Поиски на торговой площадке сохраняются на этом устройстве, чтобы их можно было открыть снова.",
@@ -771,6 +787,8 @@ globalThis.PTB = globalThis.PTB || {};
       collapse: "Свернуть ▴",
     },
     pt: {
+      pobCopy: "Copiar item em inglês para o PoB",
+      pobCopyFailed: "Não foi possível copiar o item em inglês",
       backToBookmarks: "Voltar aos favoritos",
       recentNoMatch: "Nenhuma busca correspondente.",
       recentNotice: "As buscas no mercado são salvas neste dispositivo para você poder reabri-las.",
@@ -854,6 +872,8 @@ globalThis.PTB = globalThis.PTB || {};
       collapse: "Recolher ▴",
     },
     tw: {
+      pobCopy: "複製英文物品資料供 PoB 使用",
+      pobCopyFailed: "無法複製此物品的英文資料",
       backToBookmarks: "返回收藏列表",
       recentNoMatch: "沒有符合的搜尋紀錄。",
       recentNotice: "現在會將交易搜尋儲存在此裝置上，方便日後重新開啟。",

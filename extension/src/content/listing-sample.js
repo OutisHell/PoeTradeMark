@@ -4,6 +4,7 @@
   if (!/^\/trade2?(?:\/|$)/.test(location.pathname)) return;
   const searches = new Map();
   const items = new Map();
+  const pobItems = new Map();
   const decoding = new Set();
   const landingPath = location.pathname;
   const landingQuery = /\/(?:search|exchange)\/(?:poe2\/)?[^/]+\/([\w-]+)\/?$/.exec(landingPath)?.[1];
@@ -58,6 +59,50 @@
     } catch { /* The trade request must proceed even if its format is unfamiliar. */ }
   }
 
+  const rowSnapshots = new WeakMap();
+  function pobListing(item) {
+    const nativeText = item.extended?.text;
+    if (nativeText && (typeof nativeText !== "string" || nativeText.length > 131072)) return;
+    if (nativeText && ["www.pathofexile.com", "pathofexile.com"].includes(location.hostname)) return { nativeText };
+    const rarity = ["Normal", "Magic", "Rare", "Unique", "Gem", "Currency", "Divination Card", "Quest", "Prophecy", "Relic"][item.frameType] || item.rarity;
+    const baseType = item.baseType || item.typeLine;
+    if (!baseType || !rarity) return;
+    const mods = [], affixNames = new Set();
+    for (const key of Object.keys(item)) {
+      if (!key.endsWith("Mods") || !Array.isArray(item[key])) continue;
+      const kind = key.slice(0, -4);
+      const ids = (item.extended?.hashes?.[kind] || []).map(h => Array.isArray(h) ? h[0] : h);
+      for (const mod of item[key]) {
+        const description = typeof mod === "string" ? mod : mod?.description;
+        if (!description || description.length > 4096 || mods.length >= 128) return;
+        mods.push({ description, hash: mod.hash, kind: mod.domain || kind, ids: mod.hash ? undefined : ids });
+        if (kind === "explicit" && rarity === "Magic") {
+          for (const affix of mod.mods || []) if (affix.name) affixNames.add(affix.name);
+        }
+      }
+    }
+    const requirements = item.requirements || [];
+    const simple = !nativeText && rarity === "Unique" && item.identified !== false && !item.mirrored &&
+      !item.duplicated && !item.synthesised && !item.split && !item.fractured && !item.talismanTier &&
+      !item.influences && !item.sockets?.length && !item.properties?.length && !item.additionalProperties?.length &&
+      requirements.length <= 1 && requirements.every(r => r.type === 62) &&
+      mods.every(m => m.kind === "implicit" || m.kind === "explicit");
+    if (!nativeText && !simple) return;
+    return { nativeText, rarity, baseType, typeLine: item.typeLine, name: item.name, flavour: item.flavourText,
+      ilvl: item.ilvl, mods, affixNames: [...affixNames], properties: item.properties, requirements,
+      additionalProperties: item.additionalProperties, sockets: item.sockets, corrupted: item.corrupted, simple };
+  }
+
+  function bindPobRows() {
+    const route = /^\/(trade2?)\/search\/(?:poe2\/)?([^/]+)/.exec(location.pathname);
+    if (!route || !pobItems.size) return;
+    const prefix = route[1] + ":" + decodeURIComponent(route[2]) + ":";
+    for (const row of document.querySelectorAll(".row[data-id]")) {
+      const key = prefix + row.dataset.id;
+      if (pobItems.has(key)) rowSnapshots.set(row, { key, item: pobItems.get(key) });
+    }
+  }
+
   function collect(route, data, submitted) {
     if (!data?.result || typeof data.result !== "object") return;
     const results = Array.isArray(data.result) ? data.result : Object.values(data.result);
@@ -78,6 +123,9 @@
     for (const entry of results) {
       const { id, item } = entry || {};
       if (!id || !item) continue;
+      const snapshot = pobListing(item);
+      if (snapshot) remember(pobItems, prefix + id, snapshot, 128);
+      else pobItems.delete(prefix + id);
       const price = entry.listing?.price;
       remember(items, prefix + id, {
         query: batch, league: route.league, at,
@@ -129,6 +177,17 @@
     }, { once: true });
     return send.apply(this, arguments);
   };
+
+  document.addEventListener("ptb-bind-pob-rows", bindPobRows);
+  document.addEventListener("ptb-read-pob-item", ({ target }) => {
+    if (!(target instanceof HTMLTemplateElement)) return;
+    try {
+      const { game, league, id } = JSON.parse(target.dataset.request);
+      const key = game + ":" + league + ":" + id;
+      const bound = rowSnapshots.get(target.closest?.(".row[data-id]"));
+      target.dataset.result = JSON.stringify(pobItems.get(key) || (bound?.key === key ? bound.item : null));
+    } catch { /* Ignore unrelated events. */ }
+  });
 
   document.addEventListener("ptb-read-listing-sample", ({ target }) => {
     if (!(target instanceof HTMLTemplateElement)) return;

@@ -1373,7 +1373,7 @@
       const previous = observedRows.get(target.row);
       const sameSearch = previous?.id !== target.id || previous.search === location.pathname;
       if (sameSearch) observedRows.set(target.row, { id: target.id, search: location.pathname });
-      listings.push({ id: target.id, sameSearch, box: target.box,
+      listings.push({ id: target.id, row: target.row, sameSearch, box: target.box,
         price: target.box ? parseListingPrice(target.box) : null,
         iconUrl: includeIcon ? queryOne(target.row, ICON_SELECTORS)?.src : null });
     }
@@ -1750,9 +1750,67 @@
     renderRateHits();
   };
 
+  function readPobListing(row, request) {
+    const bridge = document.createElement("template");
+    bridge.dataset.request = JSON.stringify(request);
+    row.appendChild(bridge);
+    try {
+      bridge.dispatchEvent(new Event("ptb-read-pob-item", { bubbles: true }));
+      return JSON.parse(bridge.dataset.result || "null");
+    } finally { bridge.remove(); }
+  }
+
+  function paintPobButtons(listings) {
+    if (!listings.length) return;
+    const isItemSearch = /^\/trade2?\/search\//.test(location.pathname);
+    if (isItemSearch) document.dispatchEvent(new Event("ptb-bind-pob-rows"));
+    for (const { row } of listings) {
+      const existing = row.querySelector(".ptb-pob-copy");
+      if (!isItemSearch) { existing?.remove(); continue; }
+      if (existing) continue;
+      const left = row.querySelector(".left");
+      if (!left) continue;
+      const icon = left.querySelector(".copy, .copy-item, .item-copy, [data-clipboard-text], .fa-clipboard, .fa-copy");
+      const anchor = icon?.closest("button, a, [role=button]") || icon;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ptb-pob-copy";
+      button.textContent = "PoB";
+      const hint = message("pobCopy", "Copy item in English for PoB");
+      button.title = button.ariaLabel = hint;
+      button.addEventListener("click", async event => {
+        if (!event.isTrusted || button.getAttribute("aria-busy") === "true") return;
+        event.preventDefault();
+        event.stopPropagation();
+        const currentId = row.dataset.id;
+        const page = location.href;
+        const current = PTB.parseTradeUrl(page.replace(/\/live(?=[?#]|$)/, ""));
+        button.setAttribute("aria-busy", "true");
+        try {
+          const game = PTB.gameFromUrl(page) === "poe2" ? "trade2" : "trade";
+          const item = readPobListing(row, { league: current?.league, game, id: currentId });
+          const response = await chrome.runtime.sendMessage({ cmd: "ptb-pob-copy", item });
+          if (!response?.text || currentId !== row.dataset.id || location.href !== page || !button.isConnected) throw Error(response?.error);
+          await navigator.clipboard.writeText(response.text);
+          button.textContent = "✓";
+        } catch {
+          button.textContent = "!";
+          button.title = message("pobCopyFailed", "Could not copy this item in English");
+        }
+        button.removeAttribute("aria-busy");
+        setTimeout(() => { button.textContent = "PoB"; button.title = hint; }, 2000);
+      });
+      // Trade positions its native icons with the adjacent .copy + .searchBy selector.
+      if (anchor?.nextElementSibling?.matches(".searchBy")) anchor.nextElementSibling.after(button);
+      else if (anchor) anchor.after(button);
+      else (left.querySelector(".controls, .buttons, .actions") || left).appendChild(button);
+    }
+  }
+
   const paintListingFx = () => {
     if (location.href !== state.href) return;
     const listings = readListingPrices();
+    paintPobButtons(listings);
     syncSearchPrice(listings);
     const game = PTB.gameFromUrl ? PTB.gameFromUrl(globalThis.location?.href || "") : null;
     if ((game !== "poe1" && game !== "poe2") || !fx.bundle || !PTB.rates) {
